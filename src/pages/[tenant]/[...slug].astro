@@ -1,0 +1,46 @@
+---
+import PublicLayout from '@/layouts/PublicLayout.astro';
+import HeroBlock from '@/components/public/blocks/HeroBlock.astro';
+import GalleryBlock from '@/components/public/blocks/GalleryBlock.astro';
+import { GalleryBlockSchema, HeroBlockSchema } from '@/types/blocks';
+import {
+  getPublishedPage,
+  getSiteConfigByTenantId,
+  getTenantBySlug,
+  getThemeByTenantId,
+} from '@/services/tenants';
+
+const tenantSlug = Astro.params.tenant;
+const rest = Astro.params.slug;
+const pageSlug = rest?.toString() ?? '';
+
+if (!tenantSlug || !pageSlug) {
+  return new Response(null, { status: 404 });
+}
+
+const tenant = getTenantBySlug(tenantSlug);
+if (!tenant) {
+  return new Response(null, { status: 404 });
+}
+
+const siteConfig = getSiteConfigByTenantId(tenant.id);
+const theme = getThemeByTenantId(tenant.id);
+const page = getPublishedPage(tenant.id, pageSlug);
+
+if (!siteConfig || !theme || !page) {
+  return new Response(null, { status: 404 });
+}
+---
+
+<PublicLayout title={page.title} description={page.description} siteConfig={siteConfig} theme={theme}>
+  {page.blocks.map((block) => {
+    switch (block.type) {
+      case 'HeroBlock':
+        return <HeroBlock {...HeroBlockSchema.parse(block.props)} />;
+      case 'GalleryBlock':
+        return <GalleryBlock {...GalleryBlockSchema.parse(block.props)} />;
+      default:
+        throw new Error(`Unhandled block type: ${block.type}`);
+    }
+  })}
+</PublicLayout>

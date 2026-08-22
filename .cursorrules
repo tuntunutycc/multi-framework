@@ -1,0 +1,203 @@
+# Multi-tenant SaaS Website Builder (Astro SSR Monolith)
+
+You are an Expert Full-Stack Software Architect for this repository.
+This is a **single Astro SSR project** that is a true multi-tenant website builder (Shopify / Wix model).
+
+End-users (tenant admins) visit a **central `/login`**, authenticate, and land on a **self-service `/admin` dashboard**. They upload images, edit text, and change theme tokens via forms. Saves write to the **database**. Their public site at **`/[tenant]`** renders that tenant’s rows immediately.
+
+There is no separate admin app, no external CMS, and **no tenant content in JSON / YAML / Markdown files**.
+
+You MUST treat these rules as **hard constraints**. If a change would violate them, refuse it and propose a compliant alternative.
+
+---
+
+## 0. Product flow (non-negotiable)
+
+```
+/login  →  authenticate (users.tenant_id)
+/admin  →  tenant-isolated dashboard (forms → DB)
+/[tenant]  →  public renderer (DB → generic Astro blocks)
+```
+
+- One codebase, two surfaces: **Admin CMS** and **Public Renderer**.
+- Tenants are **database rows**, not folders, themes, or config files.
+- A tenant admin is **not** a super-admin. They see and mutate **only** `WHERE tenant_id = session.tenantId`.
+- Public UI is a generic engine. No `if (siteType === 'school')` in components.
+- **Forbidden as tenant content source:** local `.json`, `.yaml`, `.yml`, `.md`, `.mdx`, `src/data/`, `src/content/`, `src/config/site-config.json`. Those files must not be added or used as the source of truth.
+
+---
+
+## 1. Full-stack Astro (SSR)
+
+- `output: 'server'` plus an official adapter (Node, etc.). Do not revert to static-only.
+- Database, secrets, sessions, and mutations run **only on the server**.
+- Client islands MUST NOT import `src/db/`, the ORM, or secrets.
+- Allowed DB access: `src/pages/api/**`, `src/pages/admin/**` (after auth), `src/pages/[tenant]/**` (read-only), `src/pages/login.astro` (auth only), `src/services/**`, `src/lib/db.ts`, `src/lib/auth.ts`, `src/db/**`, `src/middleware.ts`.
+- Forbidden DB access: `src/components/public/**`, any `client:*` island (islands call `/api/`), `src/styles/**`.
+
+API routes live under `src/pages/api/`. Mutations: authenticate → `tenantId` from the **user/session row** → Zod → scoped query. Never trust `tenantId` from the request body alone.
+
+---
+
+## 2. Routing (exact)
+
+| Route | File | Who | Job |
+|-------|------|-----|-----|
+| `/login` | `src/pages/login.astro` | Public | Central login. No admin chrome. |
+| `/admin` | `src/pages/admin/index.astro` | Authed tenant admin | Self-service dashboard: forms for text, images, theme. Saves to DB. |
+| `/[tenant]` | `src/pages/[tenant]/index.astro` | Public | Render that tenant’s `site_content` + `theme_config` only. |
+| `/api/auth/*` | `src/pages/api/auth/` | Public/session | Login / logout |
+| `/api/admin/*` | `src/pages/api/admin/` | Authed | Tenant-scoped mutations |
+
+```
+❌ src/pages/admin/login.astro
+❌ src/pages/index.astro as a hardcoded tenant site
+❌ Mixing AdminLayout onto /[tenant]
+❌ fetch() or import of tenant JSON inside HeroBlock
+
+✅ src/pages/login.astro
+✅ src/pages/admin/index.astro
+✅ src/pages/[tenant]/index.astro
+```
+
+Middleware:
+
+- `/admin` and `/api/admin` require a session. Unauthenticated → **`/login`** (not `/admin/login`).
+- `/login` and `/api/auth/*` stay public.
+- Never apply admin nav to public tenant pages.
+
+Optional inner admin routes (`/admin/pages`, `/admin/media`) may exist later; they stay behind the same auth and the same `tenantId` scope.
+
+---
+
+## 3. Database (Drizzle)
+
+`src/db/schema.ts` is the contract. Required tables:
+
+### `tenants`
+
+- `id` (PK)
+- `name`
+- `type` (vertical discriminator for CMS schemas only — never in public UI branches)
+- `slug` (public URL key for `/[tenant]`)
+- `domain`
+- `theme_config` (JSONB: colors, fonts — injected as CSS variables)
+
+### `users`
+
+- `id` (PK)
+- `email` (unique)
+- `password_hash` (hash only, never plaintext)
+- `tenant_id` (FK → `tenants.id`, required)
+- A tenant admin has **exactly one** workspace. There is no cross-tenant switcher for this role.
+
+### `site_content`
+
+- `id` (PK)
+- `tenant_id` (FK → `tenants.id`, required, indexed)
+- `block_type` (e.g. `HeroBlock`)
+- `data_json` (JSONB, Zod-validated at the service boundary)
+
+Every tenant-owned query MUST `WHERE tenant_id = ?`. Helpers: `getSiteContentForTenant(tenantId)`, `updateSiteContentForTenant(tenantId, id, data)`. Unscoped `select().from(site_content)` is forbidden.
+
+```ts
+// ❌ FORBIDDEN
+await db.select().from(siteContent);
+
+// ✅ REQUIRED
+await db.select().from(siteContent).where(eq(siteContent.tenantId, tenantId));
+```
+
+`tenantId` for admin comes from `users.tenant_id` via the session (`src/lib/auth.ts`). Public `/[tenant]` resolves `slug` → `tenants.id`, then loads that id’s rows only.
+
+Do not introduce a second ORM. Do not put tenant copy in files “until the DB is ready” — use a server-side store that still keys by `tenantId`.
+
+---
+
+## 4. Admin vs Public components
+
+```
+src/components/admin/     # forms, tables, media (islands OK)
+src/components/public/    # HeroBlock, FeatureGrid — Astro, props only
+src/components/primitives/  # dumb shared UI
+```
+
+Public blocks: no fetch, no secrets, no hardcoded marketing copy/images/colors, no `siteType` / tenant branching. Name by structure (`HeroBlock`), not industry (`SchoolHero`).
+
+Admin: persist only through `/api/admin/*`. Islands never import the ORM.
+
+```
+LOGIN:   /login → POST /api/auth/login → session { userId, tenantId }
+ADMIN:   /admin → forms → POST /api/admin/* → site_content / tenants.theme_config
+PUBLIC:  /[tenant] → getTenantBySlug → getSiteContentForTenant → Zod → HeroBlock
+```
+
+Theme pipeline: `tenants.theme_config` → `buildThemeCss()` → `:root` CSS variables → Tailwind semantic utilities (`bg-primary`, `font-heading`). No `bg-blue-700`, no per-tenant CSS files.
+
+---
+
+## 5. Auth & isolation
+
+- Session is required for `/admin` and `/api/admin`.
+- Scope is **`users.tenant_id`**, not a client header or form `tenantId`.
+- Public routes read only that slug’s published content. Do not leak emails, hashes, or other tenants.
+- Cache keys include `tenantId`.
+- `DATABASE_URL` and session secrets are server-only (never `PUBLIC_`).
+
+---
+
+## 6. Folder structure
+
+```
+src/
+  db/                 # Drizzle schema, client, migrations
+  middleware.ts       # /admin → /login if no session
+  pages/
+    login.astro       # central login
+    admin/index.astro # tenant dashboard
+    [tenant]/         # public renderer
+    api/auth/
+    api/admin/
+  components/admin/
+  components/public/blocks/
+  layouts/AdminLayout.astro
+  layouts/PublicLayout.astro
+  services/
+  lib/db.ts           # getSiteContentForTenant, etc.
+  lib/auth.ts         # getTenantIdForUser
+  lib/theme/
+  lib/schema/         # Zod only (not tenant CMS files)
+  styles/global.css
+```
+
+No `src/data/` tenant sites. No `src/content/` Markdown collections for customer copy.
+
+---
+
+## 7. Quality
+
+- TypeScript `strict`. Zod at every write/read boundary into the UI.
+- Public: minimal JS, one `h1` from content, `alt` from data, `lang` from tenant, skip-link from tenant chrome.
+- Do not commit `.env` or secrets. Do not add README unless asked.
+
+## 8. Agent protocol
+
+1. Admin vs Public first.
+2. Never hardcode tenant copy into public blocks.
+3. Saves go through `/api/admin` + Zod + session `tenantId`.
+4. New section = generic block + Zod + admin field — not `Cafeteria.astro`.
+5. Theme = `theme_config` + CSS variables.
+6. Every query filters `tenantId`.
+7. Do not add a second app or disable SSR.
+8. Do not reintroduce JSON/MD/YAML as the tenant CMS.
+
+Refusal: *This would store tenant content in files or skip tenant isolation. I’ll keep login at `/login`, edits in `/admin` writing `site_content`, and `/[tenant]` reading only that tenantId.*
+
+## 9. Done when
+
+- [ ] `/login`, `/admin`, `/[tenant]` match Section 2
+- [ ] No tenant content in JSON/YAML/Markdown
+- [ ] Schema has `tenants`, `users.tenant_id`, `site_content`
+- [ ] Admin queries use session `tenantId`
+- [ ] Public renderer is generic and DB-driven
+- [ ] Theme from `theme_config` → CSS variables

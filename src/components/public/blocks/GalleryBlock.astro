@@ -1,0 +1,26 @@
+---
+import { GalleryBlockSchema, type GalleryBlockProps } from '@/types/blocks';
+
+const { title, items }: GalleryBlockProps = GalleryBlockSchema.parse(Astro.props);
+const visible = items.filter((item) => item.imageUrl.length > 0);
+---
+
+{visible.length > 0 && (
+  <section class="bg-background px-6 py-16 text-foreground">
+    <div class="mx-auto w-full max-w-(--container-max)">
+      {title && (
+        <h2 class="font-heading mb-8 text-3xl font-semibold tracking-tight">{title}</h2>
+      )}
+      <ul class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {visible.map((item) => (
+          <li class="overflow-hidden rounded-lg border border-border bg-surface shadow-sm">
+            <img src={item.imageUrl} alt={item.caption ?? ''} class="aspect-[4/3] w-full object-cover" />
+            {item.caption && (
+              <p class="px-4 py-3 text-sm text-muted">{item.caption}</p>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+)}

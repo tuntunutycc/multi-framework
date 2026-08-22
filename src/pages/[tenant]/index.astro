@@ -1,0 +1,37 @@
+---
+import PublicLayout from '@/layouts/PublicLayout.astro';
+import HeroBlock from '@/components/public/blocks/HeroBlock.astro';
+import GalleryBlock from '@/components/public/blocks/GalleryBlock.astro';
+import { GalleryBlockSchema, HeroBlockSchema } from '@/types/blocks';
+import {
+  getHomeGallery,
+  getHomeHero,
+  getSiteConfigByTenantId,
+  getTenantBySlug,
+  getThemeByTenantId,
+} from '@/services/tenants';
+
+const slug = Astro.params.tenant;
+if (!slug) {
+  return new Response(null, { status: 404 });
+}
+
+const tenant = getTenantBySlug(slug);
+if (!tenant) {
+  return new Response(null, { status: 404 });
+}
+
+const siteConfig = getSiteConfigByTenantId(tenant.id);
+const theme = getThemeByTenantId(tenant.id);
+const hero = getHomeHero(tenant.id);
+const gallery = getHomeGallery(tenant.id);
+
+if (!siteConfig || !theme || !hero) {
+  return new Response(null, { status: 404 });
+}
+---
+
+<PublicLayout title="Home" description={siteConfig.seo.defaultDescription} siteConfig={siteConfig} theme={theme}>
+  <HeroBlock {...HeroBlockSchema.parse(hero)} />
+  <GalleryBlock {...GalleryBlockSchema.parse(gallery)} />
+</PublicLayout>

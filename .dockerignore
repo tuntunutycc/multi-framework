@@ -1,0 +1,40 @@
+# Dependencies (reinstalled in the image)
+node_modules
+
+# Build output (rebuilt in the image)
+dist
+.astro
+
+# Git
+.git
+.gitignore
+
+# Secrets and local env — inject at runtime via LXC / orchestrator
+.env
+.env.*
+!.env.example
+
+# IDE / OS
+.vscode
+.idea
+.DS_Store
+*.swp
+*.swo
+
+# Logs and debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# Tests / coverage (if added later)
+coverage
+.nyc_output
+
+# Cursor / agent artifacts
+.cursor
+.cursorrules
+
+# Documentation not needed in the image
+README.md

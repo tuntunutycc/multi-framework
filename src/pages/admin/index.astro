@@ -1,0 +1,94 @@
+---
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import { getSessionTenantId } from '@/services/session';
+import GalleryEditor from '@/components/admin/GalleryEditor';
+import { getHomeGallery, getHomeHero, getTenantById, getThemeByTenantId } from '@/services/tenants';
+
+const tenantId = getSessionTenantId(Astro.cookies);
+const tenant = tenantId ? getTenantById(tenantId) : undefined;
+const hero = tenantId ? getHomeHero(tenantId) : undefined;
+const gallery = tenantId ? getHomeGallery(tenantId) : undefined;
+const theme = tenantId ? getThemeByTenantId(tenantId) : undefined;
+
+if (!tenant || !hero || !gallery || !theme) {
+  return Astro.redirect('/login');
+}
+
+const saved = Astro.url.searchParams.get('saved');
+---
+
+<AdminLayout title="Dashboard">
+  <div class="max-w-xl">
+    <h1 class="text-2xl font-semibold tracking-tight">Your website</h1>
+    <p class="mt-2 text-sm text-zinc-600">
+      Signed in to {tenant.name}. Public URL:
+      <a class="underline" href={`/${tenant.slug}`} target="_blank" rel="noreferrer">/{tenant.slug}</a>
+    </p>
+
+    {saved === 'content' && <p class="mt-4 text-sm text-green-700">Content saved. Refresh the public site.</p>}
+    {saved === 'gallery' && <p class="mt-4 text-sm text-green-700">Gallery saved. Refresh the public site.</p>}
+    {saved === 'theme' && <p class="mt-4 text-sm text-green-700">Theme saved. Refresh the public site.</p>}
+
+    <h2 class="mt-10 text-lg font-semibold">Text and image</h2>
+    <form class="mt-4 flex flex-col gap-4" method="post" action="/api/admin/pages">
+      <label class="block text-sm font-medium">
+        Title
+        <input class="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2" name="title" required value={hero.title} />
+      </label>
+      <label class="block text-sm font-medium">
+        Subtitle
+        <textarea class="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2" name="subtitle" rows="3">{hero.subtitle ?? ''}</textarea>
+      </label>
+      <label class="block text-sm font-medium">
+        Image URL
+        <input class="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2" name="imageSrc" required value={hero.image.src} />
+      </label>
+      <label class="block text-sm font-medium">
+        Image alt
+        <input class="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2" name="imageAlt" required value={hero.image.alt} />
+      </label>
+      <label class="block text-sm font-medium">
+        Button label
+        <input class="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2" name="ctaLabel" required value={hero.cta?.label ?? ''} />
+      </label>
+      <label class="block text-sm font-medium">
+        Button link
+        <input class="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2" name="ctaHref" required value={hero.cta?.href ?? ''} />
+      </label>
+      <button class="rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white" type="submit">
+        Save content
+      </button>
+    </form>
+
+    <h2 class="mt-12 text-lg font-semibold">Gallery</h2>
+    <p class="mt-2 text-sm text-zinc-600">Add photos with optional captions (activities, events, or any album).</p>
+    <GalleryEditor
+      client:load
+      title={gallery.title ?? ''}
+      items={gallery.items.map((item) => ({ imageUrl: item.imageUrl, caption: item.caption ?? '' }))}
+    />
+
+    <h2 class="mt-12 text-lg font-semibold">Theme</h2>
+    <form class="mt-4 flex flex-col gap-4" method="post" action="/api/admin/theme">
+      <label class="block text-sm font-medium">
+        Primary
+        <input class="mt-1 h-10 w-full rounded-md border border-zinc-300" type="color" name="primary" value={theme.colors.primary} />
+      </label>
+      <label class="block text-sm font-medium">
+        Secondary
+        <input class="mt-1 h-10 w-full rounded-md border border-zinc-300" type="color" name="secondary" value={theme.colors.secondary} />
+      </label>
+      <label class="block text-sm font-medium">
+        Background
+        <input class="mt-1 h-10 w-full rounded-md border border-zinc-300" type="color" name="background" value={theme.colors.background} />
+      </label>
+      <label class="block text-sm font-medium">
+        Foreground
+        <input class="mt-1 h-10 w-full rounded-md border border-zinc-300" type="color" name="foreground" value={theme.colors.foreground} />
+      </label>
+      <button class="rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white" type="submit">
+        Save theme
+      </button>
+    </form>
+  </div>
+</AdminLayout>

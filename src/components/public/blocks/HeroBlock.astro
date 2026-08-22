@@ -1,0 +1,30 @@
+---
+import { HeroBlockSchema, type HeroBlockProps } from '@/types/blocks';
+
+const { title, subtitle, image, cta }: HeroBlockProps = HeroBlockSchema.parse(Astro.props);
+---
+
+<section class="relative isolate flex min-h-[min(36rem,90svh)] items-center overflow-hidden bg-foreground">
+  <img
+    src={image.src}
+    alt={image.alt}
+    class="absolute inset-0 size-full object-cover"
+    fetchpriority="high"
+  />
+  <div class="absolute inset-0 bg-foreground/65" aria-hidden="true"></div>
+
+  <div class="relative z-10 mx-auto w-full max-w-(--container-max) px-6 py-20">
+    <h1 class="font-heading max-w-3xl text-4xl font-semibold tracking-tight text-background sm:text-5xl">
+      {title}
+    </h1>
+    {subtitle && <p class="mt-5 max-w-2xl text-lg text-background/90">{subtitle}</p>}
+    {cta && (
+      <a
+        href={cta.href}
+        class="mt-8 inline-flex items-center rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        {cta.label}
+      </a>
+    )}
+  </div>
+</section>

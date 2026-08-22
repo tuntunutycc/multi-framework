@@ -1,0 +1,52 @@
+---
+import '@/styles/global.css';
+import { buildThemeCss } from '@/lib/theme/buildThemeCss';
+import type { SiteConfig, Theme } from '@/db/types';
+
+interface Props {
+  title: string;
+  description?: string;
+  siteConfig: SiteConfig;
+  theme: Theme;
+}
+
+const { title, description, siteConfig, theme } = Astro.props;
+const themeCss = buildThemeCss(theme);
+
+const pageTitle = siteConfig.seo.titleTemplate.includes('%s')
+  ? siteConfig.seo.titleTemplate.replace('%s', title)
+  : title;
+const pageDescription = description ?? siteConfig.seo.defaultDescription;
+const preconnect = theme.preconnect ?? [];
+---
+
+<!doctype html>
+<html lang={siteConfig.identity.language}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <link rel="icon" href={siteConfig.identity.favicon} />
+    {preconnect.map((href) => (
+      <link rel="preconnect" href={href} crossorigin />
+    ))}
+    {theme.fontSourceUrl && <link rel="stylesheet" href={theme.fontSourceUrl} />}
+    <style is:inline set:html={themeCss}></style>
+    <title>{pageTitle}</title>
+    <meta name="description" content={pageDescription} />
+    {siteConfig.seo.ogImage && <meta property="og:image" content={siteConfig.seo.ogImage} />}
+  </head>
+  <body class="bg-background font-body text-foreground antialiased">
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-4 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground"
+    >
+      {siteConfig.chrome.skipToContentLabel}
+    </a>
+    <slot name="header" />
+    <main id="main">
+      <slot />
+    </main>
+    <slot name="footer" />
+  </body>
+</html>

@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+/*
+  Semantic Tailwind tokens for the public renderer.
+
+  Neutral fallbacks exist only so utilities are generated at build time.
+  Runtime tenant values are injected onto :root by src/lib/theme/buildThemeCss.ts
+  from the tenant Theme row (DB). Public components MUST use semantic utilities
+  (bg-primary, font-heading, rounded-md) and MUST NOT use raw palette classes.
+*/
+
+@theme {
+  --color-primary: #171717;
+  --color-secondary: #737373;
+  --color-accent: #525252;
+  --color-background: #ffffff;
+  --color-surface: #fafafa;
+  --color-foreground: #0a0a0a;
+  --color-muted: #737373;
+  --color-border: #e5e5e5;
+  --color-success: #166534;
+  --color-warning: #a16207;
+  --color-danger: #991b1b;
+  --color-primary-foreground: #ffffff;
+  --color-secondary-foreground: #0a0a0a;
+
+  --font-heading: ui-serif, Georgia, serif;
+  --font-body: ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-body);
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 1rem;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.05);
+  --shadow-md: 0 8px 24px rgb(0 0 0 / 0.08);
+
+  --container-max: 72rem;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+}
