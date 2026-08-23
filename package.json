@@ -12,8 +12,10 @@
     "start": "node ./dist/server/entry.mjs",
     "astro": "astro",
     "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
     "db:migrate": "tsx --env-file=.env src/db/migrate.ts",
     "db:seed": "tsx --env-file=.env src/db/seed.ts",
+    "seed": "tsx --env-file=.env src/db/seed.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

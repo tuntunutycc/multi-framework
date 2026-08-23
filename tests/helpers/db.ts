@@ -93,6 +93,8 @@ export async function seedTestFixtures(db: AppDb): Promise<void> {
       email: TEST_USER_EMAIL,
       passwordHash,
       tenantId: TEST_TENANT_A,
+      isSuperadmin: false,
+      requiresPasswordChange: false,
     })
     .run();
 

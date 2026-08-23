@@ -13,27 +13,61 @@ function isAdminPage(pathname: string): boolean {
   return pathname === '/admin' || pathname.startsWith('/admin/');
 }
 
+function isSuperAdminApi(pathname: string): boolean {
+  return pathname.startsWith('/api/super-admin');
+}
+
+function isSuperAdminPage(pathname: string): boolean {
+  return pathname === '/super-admin' || pathname.startsWith('/super-admin/');
+}
+
+function unauthorized(isApi: boolean, redirectToLogin: boolean, context: { redirect: (path: string) => Response }) {
+  if (isApi) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+  if (redirectToLogin) {
+    return context.redirect('/login');
+  }
+  return context.redirect('/admin');
+}
+
 export const onRequest = defineMiddleware(async (context, next) => {
   if (isPublicAuthPath(context.url.pathname)) {
     return next();
   }
 
-  const needsAuth = isAdminPage(context.url.pathname) || isAdminApi(context.url.pathname);
+  const needsAuth =
+    isAdminPage(context.url.pathname) ||
+    isAdminApi(context.url.pathname) ||
+    isSuperAdminPage(context.url.pathname) ||
+    isSuperAdminApi(context.url.pathname);
+
   if (!needsAuth) {
     return next();
   }
 
-  // Verify the user still exists and cookie tenantId matches users.tenant_id
   const session = await resolveSession(context.cookies);
+  const isApi = isAdminApi(context.url.pathname) || isSuperAdminApi(context.url.pathname);
+
   if (!session) {
     context.cookies.delete('session', { path: '/' });
-    if (isAdminApi(context.url.pathname)) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    return unauthorized(isApi, true, context);
+  }
+
+  // Super-admin surfaces require is_superadmin === true
+  if (isSuperAdminPage(context.url.pathname) || isSuperAdminApi(context.url.pathname)) {
+    if (!session.isSuperadmin) {
+      if (isApi) {
+        return new Response(JSON.stringify({ error: 'Forbidden' }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return context.redirect('/admin');
     }
-    return context.redirect('/login');
   }
 
   context.locals.session = session;

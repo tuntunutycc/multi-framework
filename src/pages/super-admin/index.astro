@@ -1,0 +1,124 @@
+---
+import SuperAdminLayout from '@/layouts/SuperAdminLayout.astro';
+import { listTenants } from '@/services/superAdmin';
+
+if (!Astro.locals.session?.isSuperadmin) {
+  return Astro.redirect('/login');
+}
+
+const tenants = await listTenants();
+const created = Astro.url.searchParams.get('created');
+const createdEmail = Astro.url.searchParams.get('email');
+const error = Astro.url.searchParams.get('error');
+
+const customerTenants = tenants.filter((t) => t.slug !== 'system');
+---
+
+<SuperAdminLayout title="Super Admin">
+  <div class="mx-auto max-w-2xl">
+    <h1 class="text-2xl font-semibold tracking-tight">Platform tenants</h1>
+    <p class="mt-2 text-sm text-zinc-600">
+      Manually register customer workspaces. There is no public sign-up.
+    </p>
+
+    {created && (
+      <p class="mt-4 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800" role="status">
+        Created tenant <strong>/{created}</strong>
+        {createdEmail && (
+          <>
+            {' '}
+            with admin <strong>{createdEmail}</strong> (must change temporary password on first real login flow when enabled).
+          </>
+        )}
+      </p>
+    )}
+
+    {error && (
+      <p class="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
+        {error}
+      </p>
+    )}
+
+    <section class="mt-10" aria-labelledby="register-heading">
+      <h2 id="register-heading" class="text-lg font-semibold">Register new tenant</h2>
+      <form class="mt-4 flex flex-col gap-4" method="post" action="/api/super-admin/create-tenant">
+        <label class="block text-sm font-medium">
+          Tenant name
+          <input
+            class="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2"
+            name="name"
+            required
+            minlength="2"
+            placeholder="Acme School"
+          />
+        </label>
+        <label class="block text-sm font-medium">
+          Slug (public URL)
+          <input
+            class="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 font-mono text-sm"
+            name="slug"
+            required
+            pattern="[a-z0-9]([a-z0-9-]{0,46}[a-z0-9])?"
+            placeholder="acme"
+          />
+          <span class="mt-1 block text-xs font-normal text-zinc-500">Becomes /acme on the public site.</span>
+        </label>
+        <label class="block text-sm font-medium">
+          Admin email
+          <input
+            class="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2"
+            type="email"
+            name="adminEmail"
+            required
+            autocomplete="off"
+            placeholder="owner@acme.example"
+          />
+        </label>
+        <label class="block text-sm font-medium">
+          Temporary password
+          <input
+            class="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2"
+            type="text"
+            name="temporaryPassword"
+            required
+            minlength="8"
+            autocomplete="new-password"
+            placeholder="min 8 characters"
+          />
+          <span class="mt-1 block text-xs font-normal text-zinc-500">
+            User is flagged <code>requires_password_change</code> for a future forced reset.
+          </span>
+        </label>
+        <button class="rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white" type="submit">
+          Create tenant
+        </button>
+      </form>
+    </section>
+
+    <section class="mt-12" aria-labelledby="list-heading">
+      <h2 id="list-heading" class="text-lg font-semibold">Existing tenants ({customerTenants.length})</h2>
+      {customerTenants.length === 0 ? (
+        <p class="mt-3 text-sm text-zinc-600">No customer tenants yet.</p>
+      ) : (
+        <ul class="mt-4 divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-white">
+          {customerTenants.map((tenant) => (
+            <li class="flex items-center justify-between gap-4 px-4 py-3 text-sm">
+              <div>
+                <p class="font-medium">{tenant.name}</p>
+                <p class="font-mono text-xs text-zinc-500">/{tenant.slug}</p>
+              </div>
+              <a
+                class="shrink-0 text-zinc-700 underline underline-offset-2"
+                href={`/${tenant.slug}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                View site
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  </div>
+</SuperAdminLayout>

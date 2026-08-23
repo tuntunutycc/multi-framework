@@ -12,12 +12,12 @@ let testOverride: AppDb | undefined;
 
 const migrationsFolder = path.join(process.cwd(), 'src/db/migrations');
 
-/** Default file: ./data/sqlite.db (override with SQLITE_PATH or DATABASE_URL=file:…). */
+/** Default file: ./data/sqlite.db (override with DATABASE_URL or SQLITE_PATH). */
 export function resolveSqlitePath(): string {
-  const fromProcess = process.env.SQLITE_PATH?.trim() || process.env.DATABASE_URL?.trim();
+  const fromProcess = process.env.DATABASE_URL?.trim() || process.env.SQLITE_PATH?.trim();
   let fromMeta: string | undefined;
   try {
-    fromMeta = import.meta.env?.SQLITE_PATH?.trim() || import.meta.env?.DATABASE_URL?.trim();
+    fromMeta = import.meta.env?.DATABASE_URL?.trim() || import.meta.env?.SQLITE_PATH?.trim();
   } catch {
     // import.meta.env unavailable in some script contexts
   }

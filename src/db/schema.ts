@@ -5,6 +5,7 @@ import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqli
  * Isolation model:
  *   users.tenant_id  →  the only workspace a tenant admin may access
  *   site_content.tenant_id / tenants.theme_config  →  scoped by that id
+ *   users.is_superadmin → platform owner (can create tenants); not a cross-tenant CMS switcher
  *
  * SQLite file DB (better-sqlite3) — no separate database server.
  */
@@ -43,6 +44,12 @@ export const users = sqliteTable(
     tenantId: text('tenant_id')
       .notNull()
       .references(() => tenants.id, { onDelete: 'cascade' }),
+    /** Platform owner — may access /super-admin to provision tenants. Default false. */
+    isSuperadmin: integer('is_superadmin', { mode: 'boolean' }).notNull().default(false),
+    /** When true, force a password change after first login (temp passwords). */
+    requiresPasswordChange: integer('requires_password_change', { mode: 'boolean' })
+      .notNull()
+      .default(false),
     createdAt: integer('created_at', { mode: 'timestamp_ms' })
       .notNull()
       .$defaultFn(() => new Date()),

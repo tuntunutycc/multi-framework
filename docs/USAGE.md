@@ -33,8 +33,8 @@ Data is stored in a **SQLite file** (`./data/sqlite.db`). No separate database s
 cd multi-framework
 npm install
 cp .env.example .env
-npm run db:migrate    # create tables in ./data/sqlite.db
-npm run db:seed       # demo tenant + admin user
+npm run db:migrate    # create/apply tables (or npm run db:push)
+npm run seed          # Super Admin + Riverside demo tenant
 ```
 
 ### Important `.env` notes
@@ -94,17 +94,28 @@ npm run db:seed       # upsert demo riverside tenant + admin
 
 ## Demo login
 
-| Field | Value |
-|-------|--------|
-| Email | `admin@riverside.example` |
-| Password | `password123` |
-| Public site | `/riverside` |
+| Role | Email | Password | Lands on |
+|------|-------|----------|----------|
+| **Super admin** (platform owner) | `admin@mydomain.com` | `password123` | `/super-admin` |
+| Tenant admin (Riverside demo) | `admin@riverside.example` | `password123` | `/admin` → public `/riverside` |
+
+There is **no public sign-up**. Only the super admin can register new tenants.
 
 ---
 
 ## How to use (tenant admin)
 
-### 1. Sign in
+### 0. Super admin (platform owner)
+
+1. Sign in as `admin@mydomain.com` / `password123`
+2. You land on `/super-admin`
+3. Fill **Register new tenant**: name, slug, admin email, temporary password
+4. Submit → customer appears in the list; their public site is `/{slug}`
+5. Give the customer their email + temp password (they use `/login` → `/admin`)
+
+Middleware blocks non–super-admins from `/super-admin` (redirect to `/admin`).
+
+### 1. Sign in (tenant admin)
 
 1. Open `/login`
 2. Enter the demo email + password

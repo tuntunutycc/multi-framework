@@ -29,13 +29,14 @@ Tenant admins sign in at a central login, edit their site (copy, images, gallery
 
 ## Local development
 
-Full walkthrough: **[docs/USAGE.md](docs/USAGE.md)** (setup, login, gallery, Docker, troubleshooting).
+Full walkthrough: **[docs/USAGE.md](docs/USAGE.md)** (setup, login, gallery, Docker, troubleshooting).  
+Architecture: **[docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md)** (auth, SQLite model, admin → public data flow).
 
 ```bash
 npm install
 cp .env.example .env
-npm run db:migrate
-npm run db:seed
+npm run db:migrate   # or: npm run db:push
+npm run seed         # Super Admin + Riverside demo
 npm run dev
 ```
 

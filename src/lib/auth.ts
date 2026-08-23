@@ -5,7 +5,20 @@ import type { UserRow } from '@/db/schema';
 
 const BCRYPT_ROUNDS = 10;
 
-export type AuthUser = Pick<UserRow, 'id' | 'email' | 'tenantId'>;
+export type AuthUser = Pick<
+  UserRow,
+  'id' | 'email' | 'tenantId' | 'isSuperadmin' | 'requiresPasswordChange'
+>;
+
+function toAuthUser(row: UserRow): AuthUser {
+  return {
+    id: row.id,
+    email: row.email,
+    tenantId: row.tenantId,
+    isSuperadmin: Boolean(row.isSuperadmin),
+    requiresPasswordChange: Boolean(row.requiresPasswordChange),
+  };
+}
 
 export async function hashPassword(plain: string): Promise<string> {
   return bcrypt.hash(plain, BCRYPT_ROUNDS);
@@ -33,7 +46,7 @@ export async function authenticateUser(
   const ok = await verifyPassword(password, row.passwordHash);
   if (!ok) return null;
 
-  return { id: row.id, email: row.email, tenantId: row.tenantId };
+  return toAuthUser(row);
 }
 
 export async function getTenantAdminById(
@@ -42,7 +55,7 @@ export async function getTenantAdminById(
 ): Promise<AuthUser | undefined> {
   const row = await getUserById(userId, client);
   if (!row) return undefined;
-  return { id: row.id, email: row.email, tenantId: row.tenantId };
+  return toAuthUser(row);
 }
 
 export async function getTenantIdForUser(userId: string, client?: AppDb): Promise<string> {

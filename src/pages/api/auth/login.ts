@@ -24,5 +24,9 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     maxAge: 60 * 60 * 24 * 7,
   });
 
+  if (user.isSuperadmin) {
+    return redirect('/super-admin');
+  }
+
   return redirect('/admin');
 };
