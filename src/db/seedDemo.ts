@@ -64,7 +64,7 @@ export const riversideDemo = {
     { label: 'Campus Life', href: '/campus' },
     { label: 'Contact', href: '/contact' },
   ],
-  features: {
+  featureFlags: {
     admissionsPortal: true,
     eventsCalendar: true,
     news: true,
@@ -107,7 +107,7 @@ export const riversideDemo = {
     imageUrl: '/images/hero.svg',
     imagePosition: 'right' as const,
   },
-  features: {
+  featuresBlock: {
     title: 'What we offer',
     subtitle: 'Programs designed for curious minds and strong character.',
     features: [
@@ -150,7 +150,7 @@ export function buildRiversideThemeConfig(): TenantThemeConfig {
       seo: d.seo,
       chrome: d.chrome,
       navigation: d.navigation,
-      features: d.features,
+      features: d.featureFlags,
     },
   };
 }

@@ -66,7 +66,33 @@ export const TenantThemeConfigSchema = z.object({
 
 export type TenantThemeConfig = z.infer<typeof TenantThemeConfigSchema>;
 
+function sanitizeSiteFeatureFlags(raw: unknown): Record<string, boolean> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return {};
+  }
+  const flags: Record<string, boolean> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === 'boolean') {
+      flags[key] = value;
+    }
+  }
+  return flags;
+}
+
 export function parseTenantThemeConfig(raw: unknown): TenantThemeConfig {
+  if (raw && typeof raw === 'object' && 'site' in raw) {
+    const candidate = raw as { site?: { features?: unknown } };
+    const site = candidate.site;
+    if (site && typeof site === 'object' && 'features' in site) {
+      return TenantThemeConfigSchema.parse({
+        ...raw,
+        site: {
+          ...site,
+          features: sanitizeSiteFeatureFlags(site.features),
+        },
+      });
+    }
+  }
   return TenantThemeConfigSchema.parse(raw);
 }
 
