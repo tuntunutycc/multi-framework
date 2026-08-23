@@ -1,9 +1,24 @@
 ---
 import PublicLayout from '@/layouts/PublicLayout.astro';
 import HeroBlock from '@/components/public/blocks/HeroBlock.astro';
+import AboutBlock from '@/components/public/blocks/AboutBlock.astro';
+import FeaturesBlock from '@/components/public/blocks/FeaturesBlock.astro';
 import GalleryBlock from '@/components/public/blocks/GalleryBlock.astro';
-import { GalleryBlockSchema, HeroBlockSchema } from '@/types/blocks';
+import ContactBlock from '@/components/public/blocks/ContactBlock.astro';
 import {
+  AboutBlockSchema,
+  ContactBlockSchema,
+  FeaturesBlockSchema,
+  GalleryBlockSchema,
+  hasAboutContent,
+  hasContactContent,
+  hasFeaturesContent,
+  HeroBlockSchema,
+} from '@/types/blocks';
+import {
+  getHomeAbout,
+  getHomeContact,
+  getHomeFeatures,
   getHomeGallery,
   getHomeHero,
   getSiteConfigByTenantId,
@@ -24,14 +39,24 @@ if (!tenant) {
 const siteConfig = await getSiteConfigByTenantId(tenant.id);
 const theme = await getThemeByTenantId(tenant.id);
 const hero = await getHomeHero(tenant.id);
+const about = await getHomeAbout(tenant.id);
+const features = await getHomeFeatures(tenant.id);
 const gallery = await getHomeGallery(tenant.id);
+const contact = await getHomeContact(tenant.id);
 
 if (!siteConfig || !theme || !hero) {
   return new Response(null, { status: 404 });
 }
+
+const showAbout = hasAboutContent(about);
+const showFeatures = hasFeaturesContent(features);
+const showContact = hasContactContent(contact);
 ---
 
 <PublicLayout title="Home" description={siteConfig.seo.defaultDescription} siteConfig={siteConfig} theme={theme}>
   <HeroBlock {...HeroBlockSchema.parse(hero)} />
+  {showAbout && <AboutBlock {...AboutBlockSchema.parse(about)} />}
+  {showFeatures && <FeaturesBlock {...FeaturesBlockSchema.parse(features)} />}
   <GalleryBlock {...GalleryBlockSchema.parse(gallery)} />
+  {showContact && <ContactBlock {...ContactBlockSchema.parse(contact)} />}
 </PublicLayout>

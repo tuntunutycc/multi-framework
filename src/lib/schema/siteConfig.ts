@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { GalleryBlockSchema, HeroBlockSchema } from './blocks';
+import {
+  AboutBlockSchema,
+  ContactBlockSchema,
+  FeaturesBlockSchema,
+  GalleryBlockSchema,
+  HeroBlockSchema,
+} from './blocks';
 
 export const MediaSchema = z.object({
   src: z.string().min(1),
@@ -100,6 +106,21 @@ export const HomepageBlockSchema = z.discriminatedUnion('type', [
     type: z.literal('GalleryBlock'),
     id: z.string().min(1),
     props: GalleryBlockSchema,
+  }),
+  z.object({
+    type: z.literal('ContactBlock'),
+    id: z.string().min(1),
+    props: ContactBlockSchema,
+  }),
+  z.object({
+    type: z.literal('AboutBlock'),
+    id: z.string().min(1),
+    props: AboutBlockSchema,
+  }),
+  z.object({
+    type: z.literal('FeaturesBlock'),
+    id: z.string().min(1),
+    props: FeaturesBlockSchema,
   }),
 ]);
 

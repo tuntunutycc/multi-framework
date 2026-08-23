@@ -2,19 +2,34 @@
 import AdminLayout from '@/layouts/AdminLayout.astro';
 import { getSessionTenantId } from '@/services/session';
 import GalleryEditor from '@/components/admin/GalleryEditor';
-import { getHomeGallery, getHomeHero, getTenantById, getThemeByTenantId } from '@/services/tenants';
+import ContactEditor from '@/components/admin/ContactEditor';
+import AboutEditor from '@/components/admin/AboutEditor';
+import FeaturesEditor from '@/components/admin/FeaturesEditor';
+import {
+  getHomeAbout,
+  getHomeContact,
+  getHomeFeatures,
+  getHomeGallery,
+  getHomeHero,
+  getTenantById,
+  getThemeByTenantId,
+} from '@/services/tenants';
 
 const tenantId = Astro.locals.session?.tenantId ?? getSessionTenantId(Astro.cookies);
 const tenant = tenantId ? await getTenantById(tenantId) : undefined;
 const hero = tenantId ? await getHomeHero(tenantId) : undefined;
+const about = tenantId ? await getHomeAbout(tenantId) : undefined;
+const features = tenantId ? await getHomeFeatures(tenantId) : undefined;
 const gallery = tenantId ? await getHomeGallery(tenantId) : undefined;
+const contact = tenantId ? await getHomeContact(tenantId) : undefined;
 const theme = tenantId ? await getThemeByTenantId(tenantId) : undefined;
 
-if (!tenant || !hero || !gallery || !theme) {
+if (!tenant || !hero || !about || !features || !gallery || !contact || !theme) {
   return Astro.redirect('/login');
 }
 
 const saved = Astro.url.searchParams.get('saved');
+const publicPath = `/${tenant.slug}`;
 ---
 
 <AdminLayout title="Dashboard">
@@ -22,7 +37,7 @@ const saved = Astro.url.searchParams.get('saved');
     <h1 class="text-2xl font-semibold tracking-tight">Your website</h1>
     <p class="mt-2 text-sm text-zinc-600">
       Signed in to {tenant.name}. Public URL:
-      <a class="underline" href={`/${tenant.slug}`} target="_blank" rel="noreferrer">/{tenant.slug}</a>
+      <a class="underline" href={publicPath} target="_blank" rel="noreferrer">{publicPath}</a>
     </p>
 
     {saved === 'content' && <p class="mt-4 text-sm text-green-700">Content saved. Refresh the public site.</p>}
@@ -52,6 +67,40 @@ const saved = Astro.url.searchParams.get('saved');
       </button>
     </form>
 
+    <h2 class="mt-12 text-lg font-semibold">About us</h2>
+    <p class="mt-2 text-sm text-zinc-600">
+      Split layout with optional image on the left or right.
+    </p>
+    <AboutEditor
+      client:load
+      publicPath={publicPath}
+      initial={{
+        title: about.title,
+        content: about.content,
+        imageUrl: about.imageUrl ?? '',
+        imagePosition: about.imagePosition,
+      }}
+    />
+
+    <h2 class="mt-12 text-lg font-semibold">Services / features</h2>
+    <p class="mt-2 text-sm text-zinc-600">
+      Add, edit, or remove feature cards shown in a grid on your public site.
+    </p>
+    <FeaturesEditor
+      client:load
+      publicPath={publicPath}
+      initial={{
+        title: features.title,
+        subtitle: features.subtitle ?? '',
+        features: features.features.map((item) => ({
+          id: item.id,
+          title: item.title,
+          description: item.description,
+          iconOrImageUrl: item.iconOrImageUrl ?? '',
+        })),
+      }}
+    />
+
     <h2 class="mt-12 text-lg font-semibold">Gallery</h2>
     <p class="mt-2 text-sm text-zinc-600">
       Upload photos, edit captions, then publish when you are ready to update the public site.
@@ -59,8 +108,24 @@ const saved = Astro.url.searchParams.get('saved');
     <GalleryEditor
       client:load
       title={gallery.title ?? ''}
-      publicPath={`/${tenant.slug}`}
+      publicPath={publicPath}
       items={gallery.items.map((item) => ({ imageUrl: item.imageUrl, caption: item.caption ?? '' }))}
+    />
+
+    <h2 class="mt-12 text-lg font-semibold">Contact &amp; location</h2>
+    <p class="mt-2 text-sm text-zinc-600">
+      Address, phone, email, hours, and an optional Google Maps embed for your public homepage.
+    </p>
+    <ContactEditor
+      client:load
+      publicPath={publicPath}
+      initial={{
+        address: contact.address,
+        phone: contact.phone,
+        email: contact.email,
+        openingHours: contact.openingHours,
+        googleMapsUrl: contact.googleMapsUrl ?? '',
+      }}
     />
 
     <h2 class="mt-12 text-lg font-semibold">Theme</h2>

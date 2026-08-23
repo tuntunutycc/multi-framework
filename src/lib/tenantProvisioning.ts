@@ -71,6 +71,31 @@ export function buildDefaultGallery(): Record<string, unknown> {
   };
 }
 
+export function buildDefaultContact(): Record<string, unknown> {
+  return {
+    address: '',
+    phone: '',
+    email: '',
+    openingHours: '',
+  };
+}
+
+export function buildDefaultAbout(tenantName: string): Record<string, unknown> {
+  return {
+    title: `About ${tenantName}`,
+    content: '',
+    imagePosition: 'left',
+  };
+}
+
+export function buildDefaultFeatures(): Record<string, unknown> {
+  return {
+    title: 'Services',
+    subtitle: '',
+    features: [],
+  };
+}
+
 /** Slug: lowercase letters, numbers, hyphens; 2–48 chars. Reserved platform paths blocked. */
 const RESERVED_SLUGS = new Set([
   'system',

@@ -108,6 +108,33 @@ export async function seedDatabase(): Promise<void> {
     })
     .onConflictDoNothing({ target: [siteContent.tenantId, siteContent.blockType] });
 
+  await db
+    .insert(siteContent)
+    .values({
+      tenantId: SEED_TENANT_ID,
+      blockType: 'ContactBlock',
+      dataJson: riversideDemo.contact as unknown as Record<string, unknown>,
+    })
+    .onConflictDoNothing({ target: [siteContent.tenantId, siteContent.blockType] });
+
+  await db
+    .insert(siteContent)
+    .values({
+      tenantId: SEED_TENANT_ID,
+      blockType: 'AboutBlock',
+      dataJson: riversideDemo.about as unknown as Record<string, unknown>,
+    })
+    .onConflictDoNothing({ target: [siteContent.tenantId, siteContent.blockType] });
+
+  await db
+    .insert(siteContent)
+    .values({
+      tenantId: SEED_TENANT_ID,
+      blockType: 'FeaturesBlock',
+      dataJson: riversideDemo.features as unknown as Record<string, unknown>,
+    })
+    .onConflictDoNothing({ target: [siteContent.tenantId, siteContent.blockType] });
+
   console.log('Seed complete.');
   console.log(`  Super admin: ${SUPER_ADMIN_EMAIL} / ${SUPER_ADMIN_PASSWORD} → /super-admin`);
   console.log(`  Tenant admin: ${SEED_ADMIN_EMAIL} / ${SEED_ADMIN_PASSWORD} → /admin (/riverside)`);

@@ -1,4 +1,8 @@
 export type {
+  AboutBlockProps,
+  ContactBlockProps,
+  FeatureItem,
+  FeaturesBlockProps,
   GalleryBlockProps,
   GalleryItem,
   HeroBlockProps,
@@ -6,8 +10,15 @@ export type {
   HeroMedia,
 } from '@/lib/schema/blocks';
 export {
+  AboutBlockSchema,
+  ContactBlockSchema,
+  FeatureItemSchema,
+  FeaturesBlockSchema,
   GalleryBlockSchema,
   GalleryItemSchema,
+  hasAboutContent,
+  hasContactContent,
+  hasFeaturesContent,
   HeroBlockSchema,
   HeroCtaSchema,
   HeroMediaSchema,

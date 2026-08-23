@@ -10,6 +10,9 @@ export type MembershipRole = 'owner' | 'editor' | 'viewer';
 export type BlockType =
   | 'HeroBlock'
   | 'GalleryBlock'
+  | 'ContactBlock'
+  | 'AboutBlock'
+  | 'FeaturesBlock'
   | 'FeatureGrid'
   | 'MenuSection'
   | 'RichText'

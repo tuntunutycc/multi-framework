@@ -16,8 +16,14 @@ import {
   toTheme,
 } from '@/lib/theme/themeConfig';
 import {
+  AboutBlockSchema,
+  ContactBlockSchema,
+  FeaturesBlockSchema,
   GalleryBlockSchema,
   HeroBlockSchema,
+  type AboutBlockProps,
+  type ContactBlockProps,
+  type FeaturesBlockProps,
   type GalleryBlockProps,
   type HeroBlockProps,
 } from '@/types/blocks';
@@ -69,7 +75,8 @@ export async function getSiteConfigByTenantId(
 }
 
 /**
- * Home page is assembled from site_content rows (HeroBlock, GalleryBlock).
+ * Home page is assembled from site_content rows
+ * (HeroBlock, AboutBlock, FeaturesBlock, GalleryBlock, ContactBlock).
  * Other slugs are not stored yet — returns undefined.
  */
 export async function getPublishedPage(
@@ -84,7 +91,12 @@ export async function getPublishedPage(
   const blocks = rows.map((row) => ({
     id: row.id,
     tenantId: row.tenantId,
-    type: row.blockType as 'HeroBlock' | 'GalleryBlock',
+    type: row.blockType as
+      | 'HeroBlock'
+      | 'AboutBlock'
+      | 'FeaturesBlock'
+      | 'GalleryBlock'
+      | 'ContactBlock',
     props: row.dataJson,
   }));
 
@@ -145,6 +157,108 @@ export async function updateHomeGallery(
   await upsertSiteContentByBlockType(
     requireTenantId(tenantId),
     'GalleryBlock',
+    parsed as unknown as Record<string, unknown>,
+    client,
+  );
+  return true;
+}
+
+export function emptyContact(): ContactBlockProps {
+  return {
+    address: '',
+    phone: '',
+    email: '',
+    openingHours: '',
+  };
+}
+
+export async function getHomeContact(
+  tenantId: string,
+  client?: AppDb,
+): Promise<ContactBlockProps> {
+  const row = await getSiteContentByBlockType(requireTenantId(tenantId), 'ContactBlock', client);
+  if (!row) {
+    return emptyContact();
+  }
+  return ContactBlockSchema.parse(row.dataJson);
+}
+
+export async function updateHomeContact(
+  tenantId: string,
+  props: ContactBlockProps,
+  client?: AppDb,
+): Promise<boolean> {
+  const parsed = ContactBlockSchema.parse(props);
+  await upsertSiteContentByBlockType(
+    requireTenantId(tenantId),
+    'ContactBlock',
+    parsed as unknown as Record<string, unknown>,
+    client,
+  );
+  return true;
+}
+
+export function emptyAbout(): AboutBlockProps {
+  return {
+    title: '',
+    content: '',
+    imagePosition: 'left',
+  };
+}
+
+export async function getHomeAbout(
+  tenantId: string,
+  client?: AppDb,
+): Promise<AboutBlockProps> {
+  const row = await getSiteContentByBlockType(requireTenantId(tenantId), 'AboutBlock', client);
+  if (!row) {
+    return emptyAbout();
+  }
+  return AboutBlockSchema.parse(row.dataJson);
+}
+
+export async function updateHomeAbout(
+  tenantId: string,
+  props: AboutBlockProps,
+  client?: AppDb,
+): Promise<boolean> {
+  const parsed = AboutBlockSchema.parse(props);
+  await upsertSiteContentByBlockType(
+    requireTenantId(tenantId),
+    'AboutBlock',
+    parsed as unknown as Record<string, unknown>,
+    client,
+  );
+  return true;
+}
+
+export function emptyFeatures(): FeaturesBlockProps {
+  return {
+    title: '',
+    features: [],
+  };
+}
+
+export async function getHomeFeatures(
+  tenantId: string,
+  client?: AppDb,
+): Promise<FeaturesBlockProps> {
+  const row = await getSiteContentByBlockType(requireTenantId(tenantId), 'FeaturesBlock', client);
+  if (!row) {
+    return emptyFeatures();
+  }
+  return FeaturesBlockSchema.parse(row.dataJson);
+}
+
+export async function updateHomeFeatures(
+  tenantId: string,
+  props: FeaturesBlockProps,
+  client?: AppDb,
+): Promise<boolean> {
+  const parsed = FeaturesBlockSchema.parse(props);
+  await upsertSiteContentByBlockType(
+    requireTenantId(tenantId),
+    'FeaturesBlock',
     parsed as unknown as Record<string, unknown>,
     client,
   );

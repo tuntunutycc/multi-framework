@@ -105,19 +105,13 @@ export default function GalleryEditor({ title, items, publicPath }: Props) {
         throw new Error(payload?.error ?? 'Upload failed');
       }
 
-      const imageUrl = payload.url;
-      const caption = draft.caption.trim();
+      const stagingImageUrl = payload.url;
 
-      if (editingIndex === null) {
-        // New photo: upload succeeds → add to list immediately
-        setRows((current) => [...current, { imageUrl, caption }]);
-        setDraft(emptyDraft());
-        if (fileInputRef.current) fileInputRef.current.value = '';
-        setStatus('idle');
-        setErrorMessage('');
-      } else {
-        setDraft((current) => ({ ...current, imageUrl }));
-      }
+      // Stage in the composer only — do not append to the gallery until "Add to Gallery".
+      setDraft((current) => ({ ...current, imageUrl: stagingImageUrl }));
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      setStatus('idle');
+      setErrorMessage('');
     } catch (error) {
       setStatus('error');
       setErrorMessage(error instanceof Error ? error.message : 'Upload failed');
@@ -145,7 +139,7 @@ export default function GalleryEditor({ title, items, publicPath }: Props) {
       setErrorMessage(
         isEditing
           ? 'Image is required.'
-          : 'Drop or choose an image first, then click Upload & add.',
+          : 'Upload an image first, add an optional caption, then click Add to Gallery.',
       );
       setStatus('error');
       return;
@@ -214,7 +208,8 @@ export default function GalleryEditor({ title, items, publicPath }: Props) {
       </h3>
       {!isEditing && (
         <p className="mt-1 text-sm text-zinc-600">
-          Drop or choose a photo to add it. Edit captions on each card, then publish.
+          Upload a photo to preview it here, add a caption, then click Add to Gallery. Publish when
+          ready.
         </p>
       )}
 
@@ -247,7 +242,7 @@ export default function GalleryEditor({ title, items, publicPath }: Props) {
               <>
                 <img
                   src={draft.imageUrl}
-                  alt="Upload preview"
+                  alt="Staged upload preview"
                   className="mb-3 max-h-36 rounded-md object-contain"
                 />
                 <span className="text-sm font-medium text-zinc-800">Replace image</span>
@@ -269,6 +264,11 @@ export default function GalleryEditor({ title, items, publicPath }: Props) {
             disabled={uploading}
             onChange={onFileInput}
           />
+          {!isEditing && draft.imageUrl && (
+            <p className="mt-2 text-xs text-zinc-500">
+              Image staged — add a caption below, then Add to Gallery.
+            </p>
+          )}
         </div>
 
         <label className="block text-sm font-medium" htmlFor={`${formId}-caption`}>
@@ -290,15 +290,16 @@ export default function GalleryEditor({ title, items, publicPath }: Props) {
             className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
             disabled={uploading || !draft.imageUrl}
           >
-            {isEditing ? 'Update item' : 'Upload & add'}
+            {isEditing ? 'Update item' : 'Add to Gallery'}
           </button>
-          {isEditing && (
+          {(isEditing || draft.imageUrl || draft.caption) && (
             <button
               type="button"
               className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium"
               onClick={resetDraft}
+              disabled={uploading}
             >
-              Cancel
+              {isEditing ? 'Cancel' : 'Clear'}
             </button>
           )}
         </div>
@@ -384,7 +385,8 @@ export default function GalleryEditor({ title, items, publicPath }: Props) {
         <>
           {composer}
           <p className="text-sm text-zinc-600">
-            No photos yet. Drop an image above to add it, then click{' '}
+            No photos yet. Stage an image above, click{' '}
+            <span className="font-medium text-zinc-800">Add to Gallery</span>, then{' '}
             <span className="font-medium text-zinc-800">Publish gallery</span>.
           </p>
         </>

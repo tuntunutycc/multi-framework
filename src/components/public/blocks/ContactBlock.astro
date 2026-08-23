@@ -1,0 +1,114 @@
+---
+import { ContactBlockSchema, hasContactContent, type ContactBlockProps } from '@/types/blocks';
+import { resolveGoogleMapsEmbedUrl } from '@/lib/maps/googleMapsEmbed';
+
+const contact: ContactBlockProps = ContactBlockSchema.parse(Astro.props);
+const show = hasContactContent(contact);
+const mapUrl = contact.googleMapsUrl?.trim();
+const hoursLines = contact.openingHours
+  .split('\n')
+  .map((line) => line.trim())
+  .filter(Boolean);
+
+const mapEmbedSrc = mapUrl
+  ? await resolveGoogleMapsEmbedUrl(mapUrl, contact.address.trim())
+  : undefined;
+const mapLinkFallback = mapUrl && !mapEmbedSrc ? mapUrl : undefined;
+---
+
+{
+  show && (
+    <section class="bg-background px-6 py-16 text-foreground" aria-labelledby="contact-heading">
+      <div class="mx-auto grid w-full max-w-(--container-max) gap-10 lg:grid-cols-2 lg:gap-14 lg:items-start">
+        <div>
+          <h2
+            id="contact-heading"
+            class="font-heading text-3xl font-semibold tracking-tight text-primary sm:text-4xl"
+          >
+            Contact &amp; location
+          </h2>
+          <p class="mt-3 max-w-md text-muted">
+            Reach us by phone or email, or visit during opening hours.
+          </p>
+
+          <dl class="mt-10 space-y-6">
+            {contact.address.trim() && (
+              <div>
+                <dt class="text-xs font-semibold uppercase tracking-wide text-primary">Address</dt>
+                <dd class="mt-1 whitespace-pre-line text-base leading-relaxed text-foreground">
+                  {contact.address.trim()}
+                </dd>
+              </div>
+            )}
+            {contact.phone.trim() && (
+              <div>
+                <dt class="text-xs font-semibold uppercase tracking-wide text-primary">Phone</dt>
+                <dd class="mt-1">
+                  <a
+                    class="text-base text-foreground underline-offset-2 hover:underline"
+                    href={`tel:${contact.phone.replace(/[^\d+]/g, '')}`}
+                  >
+                    {contact.phone.trim()}
+                  </a>
+                </dd>
+              </div>
+            )}
+            {contact.email.trim() && (
+              <div>
+                <dt class="text-xs font-semibold uppercase tracking-wide text-primary">Email</dt>
+                <dd class="mt-1">
+                  <a
+                    class="text-base text-foreground underline-offset-2 hover:underline"
+                    href={`mailto:${contact.email.trim()}`}
+                  >
+                    {contact.email.trim()}
+                  </a>
+                </dd>
+              </div>
+            )}
+            {hoursLines.length > 0 && (
+              <div>
+                <dt class="text-xs font-semibold uppercase tracking-wide text-primary">
+                  Opening hours
+                </dt>
+                <dd class="mt-1 space-y-1 text-base leading-relaxed text-foreground">
+                  {hoursLines.map((line) => (
+                    <p>{line}</p>
+                  ))}
+                </dd>
+              </div>
+            )}
+          </dl>
+        </div>
+
+        {mapEmbedSrc && (
+          <div class="overflow-hidden rounded-lg bg-surface ring-1 ring-border">
+            <div class="relative aspect-[4/3] w-full">
+              <iframe
+                title="Location map"
+                src={mapEmbedSrc}
+                class="absolute inset-0 size-full border-0"
+                loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"
+                allowfullscreen
+              />
+            </div>
+          </div>
+        )}
+
+        {mapLinkFallback && (
+          <div class="flex aspect-[4/3] items-center justify-center rounded-lg bg-surface p-8 text-center ring-1 ring-border">
+            <a
+              class="inline-flex items-center rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground underline-offset-2 transition-opacity hover:opacity-90"
+              href={mapLinkFallback}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View on Google Maps
+            </a>
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}

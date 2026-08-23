@@ -1,0 +1,55 @@
+---
+import { AboutBlockSchema, hasAboutContent, type AboutBlockProps } from '@/types/blocks';
+
+const about: AboutBlockProps = AboutBlockSchema.parse(Astro.props);
+const show = hasAboutContent(about);
+const imageOnRight = about.imagePosition === 'right';
+const hasImage = Boolean(about.imageUrl?.trim());
+const paragraphs = about.content
+  .split(/\n+/)
+  .map((line) => line.trim())
+  .filter(Boolean);
+---
+
+{
+  show && (
+    <section class="bg-background px-6 py-16 text-foreground" aria-labelledby="about-heading">
+      <div
+        class:list={[
+          'mx-auto grid w-full max-w-(--container-max) gap-10 lg:items-center',
+          hasImage ? 'lg:grid-cols-2 lg:gap-14' : '',
+        ]}
+      >
+        {hasImage && (
+          <div class:list={['overflow-hidden rounded-lg bg-surface ring-1 ring-border', imageOnRight ? 'lg:order-2' : 'lg:order-1']}>
+            <img
+              src={about.imageUrl}
+              alt=""
+              class="aspect-[4/3] w-full object-cover"
+              loading="lazy"
+              decoding="async"
+            />
+          </div>
+        )}
+
+        <div class:list={[hasImage ? (imageOnRight ? 'lg:order-1' : 'lg:order-2') : '']}>
+          {about.title.trim() && (
+            <h2
+              id="about-heading"
+              class="font-heading text-3xl font-semibold tracking-tight text-primary sm:text-4xl"
+            >
+              {about.title.trim()}
+            </h2>
+          )}
+          {paragraphs.length > 0 && (
+            <div class="mt-5 space-y-4 text-base leading-relaxed text-muted">
+              {paragraphs.map((paragraph) => (
+                <p>{paragraph}</p>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  )
+}

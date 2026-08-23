@@ -4,6 +4,9 @@ import { getDb } from '@/db/client';
 import { siteContent, tenants, users, type TenantRow, type UserRow } from '@/db/schema';
 import { hashPassword } from '@/lib/auth';
 import {
+  buildDefaultAbout,
+  buildDefaultContact,
+  buildDefaultFeatures,
   buildDefaultGallery,
   buildDefaultHero,
   buildDefaultThemeConfig,
@@ -117,6 +120,24 @@ export async function createTenantWithAdmin(
     tenantId: tenant.id,
     blockType: 'GalleryBlock',
     dataJson: buildDefaultGallery(),
+  });
+
+  await database.insert(siteContent).values({
+    tenantId: tenant.id,
+    blockType: 'ContactBlock',
+    dataJson: buildDefaultContact(),
+  });
+
+  await database.insert(siteContent).values({
+    tenantId: tenant.id,
+    blockType: 'AboutBlock',
+    dataJson: buildDefaultAbout(name),
+  });
+
+  await database.insert(siteContent).values({
+    tenantId: tenant.id,
+    blockType: 'FeaturesBlock',
+    dataJson: buildDefaultFeatures(),
   });
 
   return { ok: true, tenant, user };

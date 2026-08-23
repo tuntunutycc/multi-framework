@@ -1,0 +1,59 @@
+---
+import { FeaturesBlockSchema, hasFeaturesContent, type FeaturesBlockProps } from '@/types/blocks';
+
+const block: FeaturesBlockProps = FeaturesBlockSchema.parse(Astro.props);
+const show = hasFeaturesContent(block);
+const items = block.features.filter(
+  (item) => item.title.trim() || item.description.trim() || item.iconOrImageUrl?.trim(),
+);
+---
+
+{
+  show && (
+    <section class="bg-surface px-6 py-16 text-foreground" aria-labelledby="features-heading">
+      <div class="mx-auto w-full max-w-(--container-max)">
+        <header class="mx-auto mb-12 max-w-2xl text-center">
+          {block.title.trim() && (
+            <h2
+              id="features-heading"
+              class="font-heading text-3xl font-semibold tracking-tight text-primary sm:text-4xl"
+            >
+              {block.title.trim()}
+            </h2>
+          )}
+          {block.subtitle?.trim() && (
+            <p class="mt-3 text-base leading-relaxed text-muted">{block.subtitle.trim()}</p>
+          )}
+        </header>
+
+        {items.length > 0 && (
+          <ul class="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            {items.map((item) => (
+              <li class="flex flex-col">
+                {item.iconOrImageUrl?.trim() && (
+                  <div class="mb-4 overflow-hidden rounded-lg bg-background ring-1 ring-border">
+                    <img
+                      src={item.iconOrImageUrl}
+                      alt=""
+                      class="aspect-square w-16 object-cover sm:w-20"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </div>
+                )}
+                {item.title.trim() && (
+                  <h3 class="font-heading text-xl font-semibold tracking-tight text-foreground">
+                    {item.title.trim()}
+                  </h3>
+                )}
+                {item.description.trim() && (
+                  <p class="mt-2 text-sm leading-relaxed text-muted">{item.description.trim()}</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
+  )
+}

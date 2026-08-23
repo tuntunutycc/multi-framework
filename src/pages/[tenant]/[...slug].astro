@@ -1,8 +1,17 @@
 ---
 import PublicLayout from '@/layouts/PublicLayout.astro';
 import HeroBlock from '@/components/public/blocks/HeroBlock.astro';
+import AboutBlock from '@/components/public/blocks/AboutBlock.astro';
+import FeaturesBlock from '@/components/public/blocks/FeaturesBlock.astro';
 import GalleryBlock from '@/components/public/blocks/GalleryBlock.astro';
-import { GalleryBlockSchema, HeroBlockSchema } from '@/types/blocks';
+import ContactBlock from '@/components/public/blocks/ContactBlock.astro';
+import {
+  AboutBlockSchema,
+  ContactBlockSchema,
+  FeaturesBlockSchema,
+  GalleryBlockSchema,
+  HeroBlockSchema,
+} from '@/types/blocks';
 import {
   getPublishedPage,
   getSiteConfigByTenantId,
@@ -37,8 +46,14 @@ if (!siteConfig || !theme || !page) {
     switch (block.type) {
       case 'HeroBlock':
         return <HeroBlock {...HeroBlockSchema.parse(block.props)} />;
+      case 'AboutBlock':
+        return <AboutBlock {...AboutBlockSchema.parse(block.props)} />;
+      case 'FeaturesBlock':
+        return <FeaturesBlock {...FeaturesBlockSchema.parse(block.props)} />;
       case 'GalleryBlock':
         return <GalleryBlock {...GalleryBlockSchema.parse(block.props)} />;
+      case 'ContactBlock':
+        return <ContactBlock {...ContactBlockSchema.parse(block.props)} />;
       default:
         throw new Error(`Unhandled block type: ${block.type}`);
     }

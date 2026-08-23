@@ -94,6 +94,41 @@ export const riversideDemo = {
       },
     ],
   },
+  contact: {
+    address: '1200 River Road, Riverside, CA 92501',
+    phone: '(951) 555-0142',
+    email: 'info@riversideprep.example',
+    openingHours: 'Monday–Friday 8:00–16:00\nOffice closed on school holidays',
+  },
+  about: {
+    title: 'About Riverside',
+    content:
+      'Riverside Preparatory Academy is an independent K–12 school where scholarship, character, and belonging are taught in equal measure. Families choose Riverside for rigorous academics and a campus community that knows every student by name.',
+    imageUrl: '/images/hero.svg',
+    imagePosition: 'right' as const,
+  },
+  features: {
+    title: 'What we offer',
+    subtitle: 'Programs designed for curious minds and strong character.',
+    features: [
+      {
+        id: 'feat-academics',
+        title: 'Academics',
+        description: 'A college-preparatory curriculum with small classes and dedicated faculty.',
+        iconOrImageUrl: '/logo.svg',
+      },
+      {
+        id: 'feat-arts',
+        title: 'Arts & athletics',
+        description: 'Music, theater, and competitive sports that build confidence and teamwork.',
+      },
+      {
+        id: 'feat-community',
+        title: 'Community',
+        description: 'A close-knit campus culture rooted in respect, service, and belonging.',
+      },
+    ],
+  },
 };
 
 export function buildRiversideThemeConfig(): TenantThemeConfig {
