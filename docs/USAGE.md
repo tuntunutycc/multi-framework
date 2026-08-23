@@ -41,9 +41,10 @@ npm run seed          # Super Admin + Riverside demo tenant
 
 | Variable | Purpose |
 |----------|---------|
-| `SQLITE_PATH` | DB file path (default `./data/sqlite.db`) |
+| `DATABASE_URL` | SQLite file path (default `./data/sqlite.db`; alias: `SQLITE_PATH`) |
 | `HOST` / `PORT` | Server bind (dev often `127.0.0.1:4321`) |
-| `SESSION_SECRET` | Reserved for future signed sessions |
+| `SESSION_SECRET` | Set a long random value in production (reserved for future signed cookies) |
+| `UPLOADS_DIR` | Tenant upload root (default `./public/uploads`) |
 
 **Do not set `NODE_ENV=production` in `.env` while using `npm run dev`.**  
 That breaks the admin Gallery editor (`_jsxDEV is not a function`). Production is set automatically by Docker / `npm start`.
@@ -86,8 +87,9 @@ Uses in-memory SQLite (no need for `data/sqlite.db`).
 
 ```bash
 npm run db:generate   # after changing src/db/schema.ts
-npm run db:migrate    # apply migrations to SQLITE_PATH
-npm run db:seed       # upsert demo riverside tenant + admin
+npm run db:push       # sync schema to DATABASE_URL / SQLITE_PATH (quick init)
+npm run db:migrate    # apply SQL migrations from src/db/migrations/
+npm run seed          # upsert Super Admin + Riverside demo (alias: db:seed)
 ```
 
 ---

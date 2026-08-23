@@ -43,6 +43,14 @@ COPY --from=builder --chown=astro:nodejs /app/src/db/migrations ./src/db/migrati
 RUN mkdir -p /app/data /app/public/uploads \
   && chown -R astro:nodejs /app/data /app/public
 
+# Persist SQLite + uploads via bind mounts / named volumes at runtime:
+#   -v ./data:/app/data
+#   -v ./public/uploads:/app/public/uploads
+# Schema + seed are applied on the host (or a one-off job) before first boot:
+#   npm run db:push && npm run seed
+# The production image does not include tsx/drizzle-kit.
+VOLUME ["/app/data", "/app/public/uploads"]
+
 USER astro
 
 EXPOSE 4321

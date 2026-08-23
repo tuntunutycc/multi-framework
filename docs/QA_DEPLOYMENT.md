@@ -60,9 +60,12 @@ Sign in as the new tenant admin (or Riverside demo).
 | **Hero** | Edit title/subtitle → **Save content** | Public hero updates after refresh |
 | **About** | Edit copy, upload image, toggle left/right position → **Save about** | Split layout correct on desktop |
 | **Features** | **Add New Feature**, fill title/description → **Save features** | Grid renders on public site |
-| **Gallery** | Upload image (staged) → caption → **Add to Gallery** → **Publish gallery** | Image appears publicly only after publish |
+| **Gallery upload** | Stage image → caption → **Add to Gallery** → **Publish gallery** | Image appears on public site only after publish |
+| **Gallery delete** | **Delete** an item in the gallery grid → **Publish gallery** | Item removed from editor and public gallery |
 | **Contact** | Fill address/phone/email/hours + Maps URL → **Save contact** | Contact section visible; map embeds or links correctly |
 | **Theme** | Change primary color → **Save theme** | Public CSS variables update |
+
+Detailed step tables (including gallery staging B1–B8): **[QA_TESTING.md](./QA_TESTING.md)**.
 
 ---
 
@@ -111,7 +114,7 @@ Run before each release candidate. Covers auth, DB tenant scoping, and Google Ma
 | Setup & seed | ☐ |
 | Super Admin create tenant | ☐ |
 | Hero / About / Features / Gallery / Contact / Theme | ☐ |
-| Gallery staging → publish flow | ☐ |
+| Gallery staging → publish → delete | ☐ |
 | Cross-tenant isolation (public + admin) | ☐ |
 | Auth guards & bad password | ☐ |
 | `npm test` green | ☐ |
@@ -180,7 +183,7 @@ cp .env.example .env
 # Edit .env: set SESSION_SECRET, PUBLIC_SITE_URL, DATABASE_URL
 ```
 
-**Initialize database on the host** (recommended before first container start):
+**Initialize database on the host** (required before first container start):
 
 ```bash
 npm install
@@ -190,6 +193,7 @@ npm run seed
 
 This creates `./data/sqlite.db` on the host, which will be bind-mounted into the container.
 
+> **Important:** The production Docker image runs only `node ./dist/server/entry.mjs`. It does **not** include `tsx` or `drizzle-kit`, so `npm run db:push` / `npm run seed` must run on the host (or a separate init container with the full repo + Node toolchain). Runtime still auto-applies SQL migrations from `src/db/migrations` on DB connect.
 **Run container:**
 
 ```bash
@@ -221,7 +225,7 @@ For migrate/seed scripts, use a throwaway container with the repo mounted or a d
 | Variable | Required | Example | Notes |
 |----------|----------|---------|-------|
 | `DATABASE_URL` or `SQLITE_PATH` | Yes | `./data/sqlite.db` | Path inside container: `/app/data/sqlite.db` |
-| `SESSION_SECRET` | Yes | long random string | Server-side session signing (reserved for future hardening) |
+| `SESSION_SECRET` | Yes (set in prod) | long random string | Reserved for future signed-cookie hardening; set a strong value now |
 | `UPLOADS_DIR` | Yes | `./public/uploads` | Must match volume mount |
 | `HOST` | No | `0.0.0.0` | Bind address |
 | `PORT` | No | `4321` | Exposed port |
