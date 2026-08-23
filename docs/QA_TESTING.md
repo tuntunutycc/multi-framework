@@ -7,8 +7,14 @@ Manual test plan for the multi-tenant SaaS website builder (Astro SSR + SQLite).
 ```
 /login → authenticate
 /super-admin → platform owner creates tenants
-/admin → tenant CMS (text, gallery, theme)
+/admin → tenant CMS (hero, about, features, gallery, contact, theme)
 /[tenant] → public site (e.g. /riverside)
+```
+
+**Public homepage block order (when content exists):**
+
+```
+Hero → About → Features → Gallery → Contact
 ```
 
 ---
@@ -53,7 +59,7 @@ Confirm these exist after copying `.env.example`:
 | `HOST` / `PORT` | `0.0.0.0` / `4321` | Server bind |
 
 **Do not set `NODE_ENV=production` in `.env` while using `npm run dev`.**  
-That breaks the Gallery editor React island (`_jsxDEV is not a function`). Production is set automatically by Docker / `npm start`.
+That breaks the admin React islands (`_jsxDEV is not a function`). Production is set automatically by Docker / `npm start`.
 
 ### Seeded credentials
 
@@ -70,7 +76,7 @@ There is **no public sign-up**. Only the Super Admin can create new tenants.
 npm test
 ```
 
-Uses in-memory SQLite (does not require `data/sqlite.db`).
+Uses in-memory SQLite (does not require `data/sqlite.db`). Currently includes auth, DB isolation, and Google Maps embed conversion helpers.
 
 ### Port already in use
 
@@ -94,14 +100,14 @@ Record for each case: **Pass / Fail**, browser, build URL, and a short note or s
 
 | # | Steps | Expected |
 |---|--------|----------|
-| A1 | Open `/login`. Enter `admin@mydomain.com` / `password123`. Submit. | Redirect to `/super-admin`. Page title/area shows platform tenants. |
+| A1 | Open `/login`. Enter `admin@mydomain.com` / `password123`. Submit. | Redirect to `/super-admin`. Page shows platform tenants. |
 | A2 | Confirm **Existing tenants** lists at least **Riverside** (`/riverside`). | Demo tenant visible; **system** slug is not listed as a customer. |
 | A3 | Under **Register new tenant**, create a **School**-style workspace: | |
 | | • Name: `Oakridge School` | |
 | | • Slug: `oakridge` | |
 | | • Admin email: `admin@oakridge.example` | |
 | | • Temporary password: `TempPass99` (≥ 8 chars) | |
-| | Click **Create tenant**. | Success banner: created ` /oakridge` with admin email. Tenant appears in the list. **View site** opens `/oakridge`. |
+| | Click **Create tenant**. | Success banner: created `/oakridge` with admin email. Tenant appears in the list. **View site** opens `/oakridge`. |
 | A4 | Create a second **Business**-style workspace: | |
 | | • Name: `Northwind Business` | |
 | | • Slug: `northwind` | |
@@ -116,66 +122,130 @@ Record for each case: **Pass / Fail**, browser, build URL, and a short note or s
 
 **Notes for QA**
 
-- Tenant **type** in the DB defaults to `site` if no type field is shown; use distinct **names** (School / Business) to distinguish workspaces in this build.
+- Tenant **type** in the DB defaults to `site`; use distinct **names** (School / Business) to distinguish workspaces.
 - New admins are flagged for a future forced password change; login with the temporary password still works today.
-- Non–super-admins who hit `/super-admin` should be redirected to `/admin` (not see the create form).
+- Non–super-admins who hit `/super-admin` should be redirected to `/admin`.
 
 ---
 
-### B. Tenant Admin Flow
+### B. Tenant Admin — Hero & Gallery
 
-**Goal:** A newly created tenant admin can manage their own CMS (gallery + text).
+**Goal:** Tenant admin can edit the hero and manage gallery photos with the **staging** workflow.
 
-Use the tenant created in **A3** (`admin@oakridge.example` / `TempPass99`), or the seeded Riverside admin if you prefer a known baseline.
+Use the tenant from **A3** (`admin@oakridge.example` / `TempPass99`), or Riverside (`admin@riverside.example` / `password123`).
 
 | # | Steps | Expected |
 |---|--------|----------|
-| B1 | Open `/login`. Sign in as the new tenant admin. | Redirect to `/admin` (not `/super-admin`). Dashboard shows that tenant’s name and public URL `/{slug}`. |
-| B2 | **Upload a gallery image.** Under **Gallery**, drop or choose a JPG/PNG. | Image uploads, appears in the grid, URL under `/uploads/...`. Status indicates unpublished changes. |
-| B3 | Optionally set a **caption**, then click **Publish gallery**. | Success: gallery published. “View public site” / hard-refresh `/{slug}` shows the new image. |
-| B4 | **Edit text.** Under **Text and image**, change **Title** and **Subtitle** to unique values (e.g. `QA Hero Title — Oakridge`). Click **Save content**. | Green “Content saved” (or equivalent). Public `/{slug}` shows the new hero text after refresh. |
-| B5 | **Delete an image.** In Gallery, delete the uploaded item. Click **Publish gallery** again. | Item removed from the editor. After publish, public gallery no longer shows that image. |
-| B6 | Confirm hero image URL / alt can also be edited and saved (optional). | Changes appear on the public page only after **Save content**. |
+| B1 | Open `/login`. Sign in as tenant admin. | Redirect to `/admin`. Dashboard shows tenant name and public URL `/{slug}`. |
+| B2 | **Edit hero text.** Under **Text and image**, change **Title** and **Subtitle** to unique values (e.g. `QA Hero Title — Oakridge`). Click **Save content**. | Success message. Public `/{slug}` shows new hero text after refresh. |
+| B3 | **Stage a gallery upload.** Under **Gallery**, drop or choose a JPG/PNG. | Image uploads and shows a **preview in the form area only** — **not** yet in the “On your site” grid. Helper text indicates image is staged. |
+| B4 | Type a **caption** in the form, then click **Add to Gallery**. | Item appears in the gallery list with caption. Form preview clears. “Unpublished changes” shown. |
+| B5 | Click **Publish gallery**. | Success message with link to public site. Hard-refresh `/{slug}` shows the new image and caption. |
+| B6 | **Edit** an existing gallery item caption (optional), then **Publish gallery** again. | Updated caption on public site after publish + refresh. |
+| B7 | **Delete** a gallery item, then **Publish gallery**. | Item gone from editor and public gallery. |
+| B8 | Click **Clear** while an image is staged (before Add to Gallery). | Staged preview and caption field reset; nothing added to list. |
 
 **Notes for QA**
 
-- Gallery edits are **not** live until **Publish gallery**.
-- Hero/text edits require **Save content**.
+- Gallery uploads do **not** go live until **Add to Gallery** → **Publish gallery**.
+- Hero edits require **Save content** (separate from gallery publish).
 - Uploaded files live under `public/uploads/tenant-{id}/` and are served at `/uploads/...`.
 
 ---
 
-### C. Data Isolation
+### C. Tenant Admin — About Us
 
-**Goal:** Tenant A’s public site never shows Tenant B’s content.
-
-Prerequisites: two tenants with **distinct** hero titles and (ideally) distinct gallery images — e.g. Oakridge vs Northwind from scenario A, or Oakridge vs seeded Riverside.
+**Goal:** Tenant admin can edit the About section with optional image and left/right layout.
 
 | # | Steps | Expected |
 |---|--------|----------|
-| C1 | While logged in as Tenant A, note the unique hero title and any gallery captions/images. | Record them for comparison. |
-| C2 | Open Tenant A’s public URL in a new tab (or signed-out browser): `/{slug-a}` (e.g. `/oakridge`). | Only Tenant A hero + gallery. Brand/name matches Tenant A. |
-| C3 | Open Tenant B’s public URL: `/{slug-b}` (e.g. `/northwind` or `/riverside`). | Only Tenant B content. **No** Tenant A title, images, or captions. |
-| C4 | Spot-check: Tenant A’s `/uploads/tenant-…` image URL must not appear in Tenant B’s HTML. | No cross-tenant media or copy. |
-| C5 | (Auth isolation) Log in as Tenant A; open `/admin`. Confirm you cannot see Tenant B’s CMS fields. Sign out; log in as Tenant B; confirm the reverse. | Each `/admin` session is scoped to that user’s `tenant_id` only. |
+| C1 | On `/admin`, scroll to **About us**. Confirm seeded Riverside shows title/content (or empty for a new tenant). | Section loads without JS errors. |
+| C2 | Change **Title** and **Content** to unique copy (e.g. `About Oakridge QA`). Click **Save about**. | Success message. Public `/{slug}` shows About section with new copy after refresh. |
+| C3 | Upload an image via the About drop zone (or drag-and-drop). | Preview appears in the form; image URL stored in editor state. |
+| C4 | Select **Image position → Right**. Click **Save about**. | Public site: on desktop, image appears on the **right**, text on the left. |
+| C5 | Switch to **Image position → Left**. Save again. | Public site: image on **left**, text on **right**. |
+| C6 | Click **Remove image**, save. | About section on public site shows text only (no broken image). |
+| C7 | Hard-refresh public page. | About block appears **below Hero** and **above Features** (if both have content). |
 
-**Fail criteria:** Any shared copy, image, or theme that belongs to the other tenant on a public or admin surface.
+**Notes for QA**
+
+- About saves immediately via **Save about** (no separate publish step).
+- Empty title + content + image = section hidden on public site.
 
 ---
 
-### D. Security
+### D. Tenant Admin — Services / Features
+
+**Goal:** Tenant admin can add, edit, and remove feature cards.
+
+| # | Steps | Expected |
+|---|--------|----------|
+| D1 | On `/admin`, scroll to **Services / features**. | Section title, subtitle, and feature list (or empty). |
+| D2 | Click **Add New Feature**. Fill **Title** and **Description** with unique values. Click **Save features**. | Success message. Public site shows new card in a responsive grid (up to 3 columns on desktop). |
+| D3 | Add a second feature with an **Icon / image URL** (e.g. `/logo.svg` or an uploaded `/uploads/...` path). Save. | Public card shows the icon/image above title. |
+| D4 | Edit an existing feature’s title/description. Save. | Public site reflects changes after refresh. |
+| D5 | Click **Remove** on a feature. Save. | Feature removed from public grid. |
+| D6 | Set section **Title** to `QA Services` and optional **Subtitle**. Save. | Public header updates. |
+
+**Notes for QA**
+
+- Features save immediately via **Save features**.
+- Each feature requires a stable `id` (auto-generated on add); do not duplicate IDs manually.
+
+---
+
+### E. Tenant Admin — Contact & Location
+
+**Goal:** Tenant admin can edit contact details and Google Maps display.
+
+| # | Steps | Expected |
+|---|--------|----------|
+| E1 | On `/admin`, scroll to **Contact & location**. | Fields: Address, Phone, Email, Opening hours, Google Maps URL. |
+| E2 | Fill all contact fields with unique QA values. Click **Save contact**. | Success message. Public site shows **Contact & location** section below Gallery. |
+| E3 | Paste an official **embed URL** (`https://www.google.com/maps/embed?pb=…`). Save. | Public site renders a **working iframe map** (no “refused to connect”). |
+| E4 | Paste a standard **share/place URL** (e.g. `https://www.google.com/maps/place/…` or `https://maps.app.goo.gl/…`). Ensure **Address** is filled. Save. | Public site renders an **embedded map** (converted server-side), not a broken iframe. |
+| E5 | Clear the Maps URL but keep Address. Save. | Contact details still show; map may embed from address fallback or hide if no map data. |
+| E6 | Verify phone and email are clickable (`tel:` / `mailto:`) on the public site. | Links work on mobile/desktop. |
+
+**Notes for QA**
+
+- Contact saves immediately via **Save contact**.
+- Share links are auto-converted when possible; embed URLs work directly.
+- Opening hours support multiple lines (one per line in the textarea).
+
+---
+
+### F. Data Isolation
+
+**Goal:** Tenant A’s public site never shows Tenant B’s content.
+
+Prerequisites: two tenants with distinct hero titles, about copy, features, gallery items, and contact details.
+
+| # | Steps | Expected |
+|---|--------|----------|
+| F1 | While logged in as Tenant A, note unique content across all CMS sections. | Record for comparison. |
+| F2 | Open Tenant A’s public URL: `/{slug-a}` (signed out). | Only Tenant A content across Hero, About, Features, Gallery, Contact. |
+| F3 | Open Tenant B’s public URL: `/{slug-b}`. | Only Tenant B content. **No** Tenant A copy, images, or captions. |
+| F4 | Spot-check: Tenant A’s `/uploads/tenant-…` URLs must not appear in Tenant B’s HTML. | No cross-tenant media. |
+| F5 | Log in as Tenant A → `/admin`. Confirm CMS shows only Tenant A data. Repeat for Tenant B. | Each session scoped to `tenant_id` only. |
+
+**Fail criteria:** Any shared copy, image, or contact info from another tenant on public or admin surfaces.
+
+---
+
+### G. Security
 
 **Goal:** Unauthenticated access is blocked; bad passwords are rejected.
 
 | # | Steps | Expected |
 |---|--------|----------|
-| D1 | Sign out (or use a fresh private window). Visit `/admin` directly. | Redirect to `/login`. No dashboard HTML for the tenant CMS. |
-| D2 | Still unauthenticated, visit `/super-admin`. | Redirect to `/login`. |
-| D3 | Unauthenticated `POST` / fetch to `/api/admin/*` (optional: DevTools or curl without session cookie). | `401 Unauthorized` JSON (or redirect for browser form posts). |
-| D4 | On `/login`, submit a **valid email** with a **wrong password** (e.g. `admin@mydomain.com` / `wrong-password`). | Stay on (or return to) `/login` with an invalid-credentials error. No session cookie granting `/admin`. |
-| D5 | Submit empty email/password (if UI allows). | Rejected (`missing` / validation); no authenticated redirect. |
-| D6 | Log in as **tenant** admin (`admin@riverside.example`). Visit `/super-admin`. | Redirect to `/admin` (forbidden for non–super-admin). Create-tenant form not usable. |
-| D7 | After **Sign out**, confirm `/admin` and `/super-admin` again redirect to `/login`. | Session fully cleared. |
+| G1 | Sign out (or fresh private window). Visit `/admin` directly. | Redirect to `/login`. |
+| G2 | Visit `/super-admin` unauthenticated. | Redirect to `/login`. |
+| G3 | Unauthenticated `POST` to `/api/admin/*` (optional: curl without cookie). | `401 Unauthorized` JSON. |
+| G4 | On `/login`, submit valid email + **wrong password**. | Stay on `/login` with error; no session. |
+| G5 | Submit empty email/password (if allowed). | Rejected; no authenticated redirect. |
+| G6 | Log in as tenant admin. Visit `/super-admin`. | Redirect to `/admin`. |
+| G7 | After **Sign out**, `/admin` and `/super-admin` redirect to `/login`. | Session cleared. |
 
 ---
 
@@ -185,9 +255,12 @@ Prerequisites: two tenants with **distinct** hero titles and (ideally) distinct 
 |------|----------|--------|
 | Setup | Install → `db:push` → `seed` → `dev` | ☐ |
 | Super Admin | A1–A6 | ☐ |
-| Tenant Admin | B1–B6 | ☐ |
-| Isolation | C1–C5 | ☐ |
-| Security | D1–D7 | ☐ |
+| Hero & Gallery | B1–B8 | ☐ |
+| About Us | C1–C7 | ☐ |
+| Features | D1–D6 | ☐ |
+| Contact & Maps | E1–E6 | ☐ |
+| Isolation | F1–F5 | ☐ |
+| Security | G1–G7 | ☐ |
 
 ---
 
@@ -197,13 +270,19 @@ Prerequisites: two tenants with **distinct** hero titles and (ideally) distinct 
 |-----|-----|---------|
 | `/login` | Public | Central login |
 | `/super-admin` | Super Admin only | Register tenants |
-| `/admin` | Tenant Admin | Edit hero, gallery, theme |
+| `/admin` | Tenant Admin | Full CMS dashboard |
 | `/riverside` | Public | Seeded demo school site |
-| `/{slug}` | Public | That tenant’s published site |
+| `/{slug}` | Public | Tenant published homepage |
 | `/api/auth/login` | Public | Login POST |
 | `/api/auth/logout` | Authed | Sign out |
-| `/api/super-admin/create-tenant` | Super Admin | Create tenant + admin user |
-| `/api/admin/*` | Tenant Admin | CMS mutations (session-scoped) |
+| `/api/super-admin/create-tenant` | Super Admin | Create tenant + admin |
+| `/api/admin/pages` | Tenant Admin | Save hero (form POST) |
+| `/api/admin/gallery` | Tenant Admin | Publish gallery (JSON) |
+| `/api/admin/about` | Tenant Admin | Save about section (JSON) |
+| `/api/admin/features` | Tenant Admin | Save features (JSON) |
+| `/api/admin/contact` | Tenant Admin | Save contact (JSON) |
+| `/api/admin/upload` | Tenant Admin | Image upload |
+| `/api/admin/theme` | Tenant Admin | Save theme colors (form POST) |
 
 ---
 
@@ -211,11 +290,13 @@ Prerequisites: two tenants with **distinct** hero titles and (ideally) distinct 
 
 | Symptom | Likely fix |
 |---------|------------|
-| Gallery editor blank / `_jsxDEV` error | Remove `NODE_ENV=production` from `.env`; restart `npm run dev` |
+| Admin island blank / `_jsxDEV` error | Remove `NODE_ENV=production` from `.env`; restart `npm run dev` |
 | `no such table: tenants` | Re-run `npm run db:push` (or `npm run db:migrate`) |
 | Login always fails after wipe | Re-run `npm run seed` |
-| Public gallery not updating | Click **Publish gallery**, then hard-refresh the public URL |
+| Public gallery not updating | **Add to Gallery** then **Publish gallery**; hard-refresh public URL |
 | Uploaded image 404 | Confirm file under `public/uploads/` and URL starts with `/uploads/` |
+| Map iframe “refused to connect” | Use embed URL or a share link with **Address** filled; refresh public page |
+| About/Features/Contact missing on public site | Ensure fields have content and were saved; check block order on homepage |
 | Port in use | `npm run dev -- --port 4331 --force` |
 
 ---
@@ -224,5 +305,6 @@ Prerequisites: two tenants with **distinct** hero titles and (ideally) distinct 
 
 - No self-service public registration.
 - Forced password-change UX after temp password is flagged in data but may not yet block login.
-- Public UI is generic blocks (Hero + Gallery); do not expect industry-specific layouts for “School” vs “Business”.
+- Public UI uses generic blocks (Hero, About, Features, Gallery, Contact) — not industry-specific layouts.
+- New tenants provisioned by Super Admin get empty About/Features/Contact rows; Riverside seed includes demo content.
 - Do not commit `.env`, `*.db`, or real uploads; those are excluded from Docker/Git for deployment safety.
