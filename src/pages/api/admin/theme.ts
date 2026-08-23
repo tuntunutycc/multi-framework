@@ -10,8 +10,8 @@ const ThemeEditSchema = z.object({
   foreground: z.string().min(1),
 });
 
-export const POST: APIRoute = async ({ request, cookies, redirect }) => {
-  const tenantId = getSessionTenantId(cookies);
+export const POST: APIRoute = async ({ request, cookies, locals, redirect }) => {
+  const tenantId = locals.session?.tenantId ?? getSessionTenantId(cookies);
   if (!tenantId) {
     return redirect('/login');
   }
@@ -28,7 +28,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     return redirect('/admin?error=invalid');
   }
 
-  const saved = updateThemeColors(tenantId, parsed.data);
+  const saved = await updateThemeColors(tenantId, parsed.data);
   if (!saved) {
     return redirect('/admin?error=missing');
   }

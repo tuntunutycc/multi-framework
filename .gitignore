@@ -30,7 +30,15 @@ pnpm-debug.log*
 *.sqlite
 *.sqlite3
 *.db
+data/*.db
+data/*.db-*
+!data/.gitkeep
 
 # test / coverage
 coverage/
 .nyc_output/
+
+# tenant image uploads (keep public/uploads/.gitkeep)
+public/uploads/**
+!public/uploads/.gitkeep
+!public/uploads/.gitignore

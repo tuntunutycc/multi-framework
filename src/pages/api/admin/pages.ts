@@ -3,8 +3,8 @@ import { HeroBlockSchema } from '@/types/blocks';
 import { getSessionTenantId } from '@/services/session';
 import { updateHomeHero } from '@/services/tenants';
 
-export const POST: APIRoute = async ({ request, cookies, redirect }) => {
-  const tenantId = getSessionTenantId(cookies);
+export const POST: APIRoute = async ({ request, cookies, locals, redirect }) => {
+  const tenantId = locals.session?.tenantId ?? getSessionTenantId(cookies);
   if (!tenantId) {
     return redirect('/login');
   }
@@ -17,17 +17,14 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
       src: String(form.get('imageSrc') ?? '').trim(),
       alt: String(form.get('imageAlt') ?? '').trim(),
     },
-    cta: {
-      label: String(form.get('ctaLabel') ?? '').trim(),
-      href: String(form.get('ctaHref') ?? '').trim(),
-    },
+    // CTA button removed from product — do not persist one
   });
 
   if (!parsed.success) {
     return redirect('/admin?error=invalid');
   }
 
-  const saved = updateHomeHero(tenantId, parsed.data);
+  const saved = await updateHomeHero(tenantId, parsed.data);
   if (!saved) {
     return redirect('/admin?error=missing');
   }

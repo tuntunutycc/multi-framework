@@ -1,15 +1,19 @@
-# Dependencies (reinstalled in the image)
+# Dependencies (reinstalled / copied inside the image)
 node_modules
 
 # Build output (rebuilt in the image)
 dist
 .astro
 
+# Runtime uploads (mount a volume instead of baking them into the image)
+public/uploads
+!public/uploads/.gitkeep
+
 # Git
 .git
 .gitignore
 
-# Secrets and local env — inject at runtime via LXC / orchestrator
+# Secrets and local env — inject at runtime
 .env
 .env.*
 !.env.example
@@ -18,23 +22,14 @@ dist
 .vscode
 .idea
 .DS_Store
-*.swp
-*.swo
 
-# Logs and debug
+# Logs
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
 *.log
-
-# Tests / coverage (if added later)
-coverage
-.nyc_output
 
 # Cursor / agent artifacts
 .cursor
 .cursorrules
 
-# Documentation not needed in the image
+# Docs not needed in the image
 README.md

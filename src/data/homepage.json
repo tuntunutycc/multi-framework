@@ -11,10 +11,6 @@
         "image": {
           "src": "/images/hero.svg",
           "alt": "Students crossing the Riverside Preparatory Academy courtyard toward the main academic building"
-        },
-        "cta": {
-          "label": "Schedule a visit",
-          "href": "/visit"
         }
       }
     },

@@ -4,11 +4,11 @@ import { getSessionTenantId } from '@/services/session';
 import GalleryEditor from '@/components/admin/GalleryEditor';
 import { getHomeGallery, getHomeHero, getTenantById, getThemeByTenantId } from '@/services/tenants';
 
-const tenantId = getSessionTenantId(Astro.cookies);
-const tenant = tenantId ? getTenantById(tenantId) : undefined;
-const hero = tenantId ? getHomeHero(tenantId) : undefined;
-const gallery = tenantId ? getHomeGallery(tenantId) : undefined;
-const theme = tenantId ? getThemeByTenantId(tenantId) : undefined;
+const tenantId = Astro.locals.session?.tenantId ?? getSessionTenantId(Astro.cookies);
+const tenant = tenantId ? await getTenantById(tenantId) : undefined;
+const hero = tenantId ? await getHomeHero(tenantId) : undefined;
+const gallery = tenantId ? await getHomeGallery(tenantId) : undefined;
+const theme = tenantId ? await getThemeByTenantId(tenantId) : undefined;
 
 if (!tenant || !hero || !gallery || !theme) {
   return Astro.redirect('/login');
@@ -47,24 +47,19 @@ const saved = Astro.url.searchParams.get('saved');
         Image alt
         <input class="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2" name="imageAlt" required value={hero.image.alt} />
       </label>
-      <label class="block text-sm font-medium">
-        Button label
-        <input class="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2" name="ctaLabel" required value={hero.cta?.label ?? ''} />
-      </label>
-      <label class="block text-sm font-medium">
-        Button link
-        <input class="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2" name="ctaHref" required value={hero.cta?.href ?? ''} />
-      </label>
       <button class="rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white" type="submit">
         Save content
       </button>
     </form>
 
     <h2 class="mt-12 text-lg font-semibold">Gallery</h2>
-    <p class="mt-2 text-sm text-zinc-600">Add photos with optional captions (activities, events, or any album).</p>
+    <p class="mt-2 text-sm text-zinc-600">
+      Upload photos, edit captions, then publish when you are ready to update the public site.
+    </p>
     <GalleryEditor
       client:load
       title={gallery.title ?? ''}
+      publicPath={`/${tenant.slug}`}
       items={gallery.items.map((item) => ({ imageUrl: item.imageUrl, caption: item.caption ?? '' }))}
     />
 

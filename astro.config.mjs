@@ -13,5 +13,15 @@ export default defineConfig({
   integrations: [react()],
   vite: {
     plugins: [tailwindcss()],
+    resolve: {
+      dedupe: ['react', 'react-dom'],
+    },
+    optimizeDeps: {
+      include: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
+    },
+    ssr: {
+      // Native addon — must not be bundled into the SSR graph
+      external: ['better-sqlite3'],
+    },
   },
 });

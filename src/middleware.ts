@@ -1,4 +1,5 @@
 import { defineMiddleware } from 'astro:middleware';
+import { resolveSession } from '@/services/session';
 
 function isPublicAuthPath(pathname: string): boolean {
   return pathname === '/login' || pathname.startsWith('/api/auth/');
@@ -17,10 +18,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return next();
   }
 
-  const session = context.cookies.get('session')?.value;
   const needsAuth = isAdminPage(context.url.pathname) || isAdminApi(context.url.pathname);
+  if (!needsAuth) {
+    return next();
+  }
 
-  if (needsAuth && !session) {
+  // Verify the user still exists and cookie tenantId matches users.tenant_id
+  const session = await resolveSession(context.cookies);
+  if (!session) {
+    context.cookies.delete('session', { path: '/' });
     if (isAdminApi(context.url.pathname)) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
@@ -30,5 +36,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return context.redirect('/login');
   }
 
+  context.locals.session = session;
   return next();
 });

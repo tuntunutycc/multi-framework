@@ -16,15 +16,15 @@ if (!slug) {
   return new Response(null, { status: 404 });
 }
 
-const tenant = getTenantBySlug(slug);
+const tenant = await getTenantBySlug(slug);
 if (!tenant) {
   return new Response(null, { status: 404 });
 }
 
-const siteConfig = getSiteConfigByTenantId(tenant.id);
-const theme = getThemeByTenantId(tenant.id);
-const hero = getHomeHero(tenant.id);
-const gallery = getHomeGallery(tenant.id);
+const siteConfig = await getSiteConfigByTenantId(tenant.id);
+const theme = await getThemeByTenantId(tenant.id);
+const hero = await getHomeHero(tenant.id);
+const gallery = await getHomeGallery(tenant.id);
 
 if (!siteConfig || !theme || !hero) {
   return new Response(null, { status: 404 });

@@ -18,14 +18,14 @@ if (!tenantSlug || !pageSlug) {
   return new Response(null, { status: 404 });
 }
 
-const tenant = getTenantBySlug(tenantSlug);
+const tenant = await getTenantBySlug(tenantSlug);
 if (!tenant) {
   return new Response(null, { status: 404 });
 }
 
-const siteConfig = getSiteConfigByTenantId(tenant.id);
-const theme = getThemeByTenantId(tenant.id);
-const page = getPublishedPage(tenant.id, pageSlug);
+const siteConfig = await getSiteConfigByTenantId(tenant.id);
+const theme = await getThemeByTenantId(tenant.id);
+const page = await getPublishedPage(tenant.id, pageSlug);
 
 if (!siteConfig || !theme || !page) {
   return new Response(null, { status: 404 });

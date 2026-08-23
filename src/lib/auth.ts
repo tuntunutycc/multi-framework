@@ -1,31 +1,52 @@
-import { eq } from 'drizzle-orm';
-import { getDb } from '@/db/client';
-import { users, type UserRow } from '@/db/schema';
+import bcrypt from 'bcryptjs';
+import type { AppDb } from '@/db/client';
+import { getUserByEmail, getUserById } from '@/lib/db';
+import type { UserRow } from '@/db/schema';
 
-export type TenantAdmin = Pick<UserRow, 'id' | 'email' | 'tenantId'>;
+const BCRYPT_ROUNDS = 10;
 
-/**
- * Resolve the signed-in admin's workspace from the user row.
- * Tenant admins are not super-admins: their tenantId is the only scope they get.
- * Never trust a tenantId from the request body or query string.
- */
-export async function getTenantAdminById(userId: string): Promise<TenantAdmin | undefined> {
-  const [row] = await getDb()
-    .select({
-      id: users.id,
-      email: users.email,
-      tenantId: users.tenantId,
-    })
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
+export type AuthUser = Pick<UserRow, 'id' | 'email' | 'tenantId'>;
 
-  return row;
+export async function hashPassword(plain: string): Promise<string> {
+  return bcrypt.hash(plain, BCRYPT_ROUNDS);
 }
 
-/** Session helper: workspace comes from the user record, not from the client. */
-export async function getTenantIdForUser(userId: string): Promise<string> {
-  const admin = await getTenantAdminById(userId);
+export async function verifyPassword(plain: string, passwordHash: string): Promise<boolean> {
+  return bcrypt.compare(plain, passwordHash);
+}
+
+/**
+ * Look up users by email and verify password_hash.
+ * Returns null for unknown user or bad password (same outcome — no user enumeration in API).
+ */
+export async function authenticateUser(
+  email: string,
+  password: string,
+  client?: AppDb,
+): Promise<AuthUser | null> {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized || !password) return null;
+
+  const row = await getUserByEmail(normalized, client);
+  if (!row) return null;
+
+  const ok = await verifyPassword(password, row.passwordHash);
+  if (!ok) return null;
+
+  return { id: row.id, email: row.email, tenantId: row.tenantId };
+}
+
+export async function getTenantAdminById(
+  userId: string,
+  client?: AppDb,
+): Promise<AuthUser | undefined> {
+  const row = await getUserById(userId, client);
+  if (!row) return undefined;
+  return { id: row.id, email: row.email, tenantId: row.tenantId };
+}
+
+export async function getTenantIdForUser(userId: string, client?: AppDb): Promise<string> {
+  const admin = await getTenantAdminById(userId, client);
   if (!admin) {
     throw new Error('User is not assigned to a tenant workspace');
   }

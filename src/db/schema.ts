@@ -1,23 +1,30 @@
-import { index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { randomUUID } from 'node:crypto';
+import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 /**
  * Isolation model:
  *   users.tenant_id  →  the only workspace a tenant admin may access
  *   site_content.tenant_id / tenants.theme_config  →  scoped by that id
+ *
+ * SQLite file DB (better-sqlite3) — no separate database server.
  */
 
-export const tenants = pgTable(
+export const tenants = sqliteTable(
   'tenants',
   {
-    id: uuid('id').defaultRandom().primaryKey(),
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => randomUUID()),
     name: text('name').notNull(),
     /** CMS schema discriminator only — never branch on this in public UI. */
     type: text('type').notNull(),
     /** Public URL key: /[tenant] */
     slug: text('slug').notNull(),
     domain: text('domain').notNull(),
-    themeConfig: jsonb('theme_config').notNull().$type<Record<string, unknown>>(),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    themeConfig: text('theme_config', { mode: 'json' }).notNull().$type<Record<string, unknown>>(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .$defaultFn(() => new Date()),
   },
   (table) => [
     uniqueIndex('tenants_slug_uidx').on(table.slug),
@@ -25,16 +32,20 @@ export const tenants = pgTable(
   ],
 );
 
-export const users = pgTable(
+export const users = sqliteTable(
   'users',
   {
-    id: uuid('id').defaultRandom().primaryKey(),
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => randomUUID()),
     email: text('email').notNull(),
     passwordHash: text('password_hash').notNull(),
-    tenantId: uuid('tenant_id')
+    tenantId: text('tenant_id')
       .notNull()
       .references(() => tenants.id, { onDelete: 'cascade' }),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .$defaultFn(() => new Date()),
   },
   (table) => [
     uniqueIndex('users_email_uidx').on(table.email),
@@ -42,20 +53,29 @@ export const users = pgTable(
   ],
 );
 
-export const siteContent = pgTable(
+export const siteContent = sqliteTable(
   'site_content',
   {
-    id: uuid('id').defaultRandom().primaryKey(),
-    tenantId: uuid('tenant_id')
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => randomUUID()),
+    tenantId: text('tenant_id')
       .notNull()
       .references(() => tenants.id, { onDelete: 'cascade' }),
-    /** e.g. HeroBlock | GalleryBlock. GalleryBlock data_json: { title?, items: [{ imageUrl, caption? }] } */
+    /** e.g. HeroBlock | GalleryBlock */
     blockType: text('block_type').notNull(),
-    dataJson: jsonb('data_json').notNull().$type<Record<string, unknown>>(),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    dataJson: text('data_json', { mode: 'json' }).notNull().$type<Record<string, unknown>>(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .$defaultFn(() => new Date()),
   },
-  (table) => [index('site_content_tenant_id_idx').on(table.tenantId)],
+  (table) => [
+    index('site_content_tenant_id_idx').on(table.tenantId),
+    uniqueIndex('site_content_tenant_block_uidx').on(table.tenantId, table.blockType),
+  ],
 );
 
 export type TenantRow = typeof tenants.$inferSelect;

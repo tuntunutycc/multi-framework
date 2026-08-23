@@ -1,4 +1,6 @@
 import type { APIRoute } from 'astro';
+import { authenticateUser } from '@/lib/auth';
+import { encodeSessionCookie, SESSION_COOKIE } from '@/services/session';
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const form = await request.formData();
@@ -9,8 +11,12 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     return redirect('/login?error=missing');
   }
 
-  // Scaffolding only: replace with real credential + membership lookup.
-  cookies.set('session', `user_demo:tenant_riverside`, {
+  const user = await authenticateUser(email, password);
+  if (!user) {
+    return redirect('/login?error=invalid');
+  }
+
+  cookies.set(SESSION_COOKIE, encodeSessionCookie(user.id, user.tenantId), {
     path: '/',
     httpOnly: true,
     sameSite: 'lax',
