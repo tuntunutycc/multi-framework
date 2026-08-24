@@ -229,7 +229,8 @@ For migrate/seed scripts, use a throwaway container with the repo mounted or a d
 | `UPLOADS_DIR` | Yes | `./public/uploads` | Must match volume mount |
 | `HOST` | No | `0.0.0.0` | Bind address |
 | `PORT` | No | `4321` | Exposed port |
-| `PUBLIC_SITE_URL` | Recommended | `https://app.example.com` | Canonical base for links |
+| `PUBLIC_SITE_URL` | Recommended | `https://app.example.com` | Public HTTPS URL (Cloudflare hostname). Feeds `security.allowedDomains` so CSRF / Origin checks work behind the tunnel |
+| `ALLOWED_HOSTS` | Optional | `app.example.com,*.example.com` | Extra host patterns for `X-Forwarded-Host` trust |
 | `NODE_ENV` | Auto in Docker | `production` | Set by Dockerfile runner stage |
 
 Copy from `.env.example`. **Never commit `.env` to Git.**
@@ -292,7 +293,347 @@ Same pattern as Docker:
 - `npm run build && npm start`
 - Persist `./data/sqlite.db` and `./public/uploads` outside the deploy directory
 - systemd unit with `EnvironmentFile=/path/to/.env`
-- Reverse proxy (nginx/Caddy) terminating TLS in front of `:4321`
+- Expose the app on `127.0.0.1:4321` (or `0.0.0.0:4321`) for Cloudflare Tunnel — **do not** open port 4321 to the public internet
+
+---
+
+### 2.9.1 Cloudflare Tunnel Deployment (LXC / Local Server)
+
+This section is the **canonical playbook** for exposing Multi-Framework on a Proxmox LXC (or any local Linux server) via [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/) (`cloudflared`). Cloudflare terminates HTTPS; the origin stays on private HTTP.
+
+**Architecture**
+
+```
+Internet (HTTPS)
+    → Cloudflare edge
+    → cloudflared (on LXC)
+    → http://127.0.0.1:4321  (Astro SSR / Node)
+         → ./data/sqlite.db
+         → ./public/uploads/
+```
+
+**App notes for DevOps**
+
+- Public tenant sites are path-based: `https://your-domain/riverside` (slug), **not** Host-header routing.
+- Set `PUBLIC_SITE_URL` to the **exact public HTTPS origin** so Astro’s `security.allowedDomains` trusts Cloudflare’s `X-Forwarded-Host` / `X-Forwarded-Proto` (required for login/admin form CSRF).
+- Tunnel origin protocol must be **HTTP** to Node. Do not point the tunnel at HTTPS on the LXC unless you terminate TLS yourself.
+
+---
+
+#### A. Prerequisites
+
+1. **App running on the LXC** (production):
+
+   ```bash
+   cd /path/to/multi-framework
+   npm install
+   cp .env.example .env
+   # edit .env (see section B)
+   npm run db:push
+   npm run seed
+   npm run build
+   npm start
+   # or: systemd unit that runs: node ./dist/server/entry.mjs
+   ```
+
+2. Confirm the origin responds locally:
+
+   ```bash
+   curl -sf -o /dev/null -w "%{http_code}\n" http://127.0.0.1:4321/login
+   # expect: 200
+   ```
+
+3. **Install `cloudflared` on the LXC** (Debian/Ubuntu example):
+
+   ```bash
+   # Official Cloudflare package repo (Debian/Ubuntu)
+   sudo mkdir -p --mode=0755 /usr/share/keyrings
+   curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg \
+     | sudo tee /usr/share/keyrings/cloudflare-main.gpg >/dev/null
+
+   echo 'deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main' \
+     | sudo tee /etc/apt/sources.list.d/cloudflared.list
+
+   sudo apt-get update
+   sudo apt-get install -y cloudflared
+   cloudflared --version
+   ```
+
+   **Alternative (binary download)** if apt is unavailable:
+
+   ```bash
+   # Example for linux amd64 — pick the asset matching your arch from GitHub Releases
+   curl -L --output cloudflared.deb \
+     https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+   sudo dpkg -i cloudflared.deb
+   cloudflared --version
+   ```
+
+4. You need a **Cloudflare account** and a zone (domain) already added to Cloudflare for a **permanent** named tunnel. Quick tunnels (section C) do not require a custom domain.
+
+---
+
+#### B. Environment setup (required before public access)
+
+Edit `.env` on the LXC so the public URL matches what browsers will use.
+
+**Local / LXC-only testing (no tunnel yet):**
+
+```bash
+PUBLIC_SITE_URL=http://127.0.0.1:4321
+HOST=0.0.0.0
+PORT=4321
+```
+
+**Behind Cloudflare Tunnel (production hostname):**
+
+```bash
+# MUST be https + the hostname users type in the browser
+PUBLIC_SITE_URL=https://app.example.com
+HOST=0.0.0.0
+PORT=4321
+SESSION_SECRET=replace-with-a-long-random-secret
+DATABASE_URL=./data/sqlite.db
+UPLOADS_DIR=./public/uploads
+```
+
+Optional extra host patterns (wildcards supported by Astro):
+
+```bash
+ALLOWED_HOSTS=app.example.com,*.example.com
+```
+
+After changing `PUBLIC_SITE_URL` / `ALLOWED_HOSTS`, **rebuild and restart** the Node app (`npm run build && npm start` or restart systemd). `astro.config.mjs` reads these at build/config time for `security.allowedDomains`.
+
+---
+
+#### C. Quick Tunnel (temporary testing)
+
+Use this to smoke-test the app from the internet **without** creating a named tunnel or DNS record. Cloudflare assigns a random `*.trycloudflare.com` URL.
+
+1. Ensure the app is listening on `127.0.0.1:4321`.
+2. In a second SSH session on the LXC, run:
+
+   ```bash
+   cloudflared tunnel --url http://127.0.0.1:4321
+   ```
+
+   Or without a global install:
+
+   ```bash
+   npx --yes cloudflared tunnel --url http://127.0.0.1:4321
+   ```
+
+3. Copy the printed HTTPS URL (e.g. `https://random-words-xxxx.trycloudflare.com`).
+4. **Temporarily** set that origin in `.env`, rebuild/restart:
+
+   ```bash
+   PUBLIC_SITE_URL=https://random-words-xxxx.trycloudflare.com
+   ```
+
+5. Open the URL → `/login` → smoke-test login and `/riverside`.
+
+**Caveats:** Quick tunnels are ephemeral, not for production, and the hostname changes every run. Prefer a permanent tunnel (section D) for QA sign-off and go-live.
+
+---
+
+#### D. Permanent Tunnel (production)
+
+Replace placeholders:
+
+| Placeholder | Example |
+|-------------|---------|
+| `<TUNNEL_NAME>` | `multi-framework-lxc` |
+| `<HOSTNAME>` | `app.example.com` |
+| `<ACCOUNT>` | Your Cloudflare Zero Trust / dashboard account |
+
+##### D.1 Authenticate
+
+On the LXC (needs a browser for the OAuth flow — use SSH port-forward or run `login` from a machine that can open the URL):
+
+```bash
+cloudflared tunnel login
+```
+
+This opens a Cloudflare login page. Authorize the domain you will route. Credentials are stored under `~/.cloudflared/` (typically `cert.pem`).
+
+##### D.2 Create the tunnel
+
+```bash
+cloudflared tunnel create <TUNNEL_NAME>
+```
+
+Note the **Tunnel ID** (UUID) printed in the output. A credentials JSON file is written, e.g.:
+
+```text
+~/.cloudflared/<TUNNEL_ID>.json
+```
+
+##### D.3 Route DNS to the tunnel
+
+Attach a hostname in your Cloudflare zone to this tunnel:
+
+```bash
+cloudflared tunnel route dns <TUNNEL_NAME> <HOSTNAME>
+```
+
+Example:
+
+```bash
+cloudflared tunnel route dns multi-framework-lxc app.example.com
+```
+
+This creates a CNAME in Cloudflare DNS pointing `<HOSTNAME>` at the tunnel. Confirm in the Cloudflare DNS UI.
+
+##### D.4 Configure `config.yml`
+
+Create the config file (paths must match the credentials file from D.2):
+
+```bash
+sudo mkdir -p /etc/cloudflared
+sudo nano /etc/cloudflared/config.yml
+```
+
+**Example `/etc/cloudflared/config.yml`:**
+
+```yaml
+# Replace <TUNNEL_ID> with the UUID from `cloudflared tunnel create`
+tunnel: <TUNNEL_ID>
+credentials-file: /etc/cloudflared/<TUNNEL_ID>.json
+
+# Optional: restrict to IPv4
+# protocol: http2
+
+ingress:
+  # Public hostname → Astro SSR origin (HTTP only)
+  - hostname: app.example.com
+    service: http://127.0.0.1:4321
+    originRequest:
+      # Cloudflare already terminates TLS; origin is plain HTTP
+      noTLSVerify: true
+      connectTimeout: 30s
+      # Helps Astro see original scheme/host for CSRF + redirects
+      httpHostHeader: app.example.com
+
+  # Catch-all (required)
+  - service: http_status:404
+```
+
+Copy credentials into place (adjust ownership for the service user):
+
+```bash
+# From the user that ran `tunnel create`:
+sudo cp ~/.cloudflared/<TUNNEL_ID>.json /etc/cloudflared/<TUNNEL_ID>.json
+sudo cp ~/.cloudflared/cert.pem /etc/cloudflared/cert.pem
+sudo chmod 600 /etc/cloudflared/<TUNNEL_ID>.json /etc/cloudflared/cert.pem
+```
+
+Validate config:
+
+```bash
+cloudflared tunnel --config /etc/cloudflared/config.yml ingress validate
+```
+
+Dry-run / foreground test:
+
+```bash
+cloudflared tunnel --config /etc/cloudflared/config.yml run <TUNNEL_NAME>
+```
+
+In another terminal:
+
+```bash
+curl -sf -o /dev/null -w "%{http_code}\n" https://app.example.com/login
+# expect: 200
+```
+
+Confirm `.env` has:
+
+```bash
+PUBLIC_SITE_URL=https://app.example.com
+```
+
+Then rebuild/restart the Node app.
+
+##### D.5 Install as a system service
+
+With a valid `/etc/cloudflared/config.yml` and credentials file:
+
+```bash
+sudo cloudflared service install
+sudo systemctl enable cloudflared
+sudo systemctl start cloudflared
+sudo systemctl status cloudflared
+```
+
+Useful service commands:
+
+```bash
+sudo journalctl -u cloudflared -f
+sudo systemctl restart cloudflared
+sudo systemctl stop cloudflared
+```
+
+**Order of operations at boot:** start the Astro app **before** or **with** `cloudflared` so ingress does not 502 while Node is down. Prefer a systemd `After=` / `Requires=` relationship if both are units.
+
+Example fragment for the app unit (`/etc/systemd/system/multi-framework.service`):
+
+```ini
+[Unit]
+Description=Multi-Framework Astro SSR
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/path/to/multi-framework
+EnvironmentFile=/path/to/multi-framework/.env
+ExecStart=/usr/bin/node ./dist/server/entry.mjs
+Restart=on-failure
+User=www-data
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then ensure `cloudflared.service` starts after the app (optional override):
+
+```bash
+sudo systemctl edit cloudflared
+```
+
+```ini
+[Unit]
+After=multi-framework.service
+Wants=multi-framework.service
+```
+
+---
+
+#### E. Post-deploy checklist (Cloudflare)
+
+| Step | Command / check | Pass |
+|------|-----------------|------|
+| Origin local | `curl http://127.0.0.1:4321/login` → 200 | ☐ |
+| `.env` public URL | `PUBLIC_SITE_URL=https://<HOSTNAME>` | ☐ |
+| App rebuilt after env change | `npm run build && systemctl restart multi-framework` | ☐ |
+| Tunnel service | `systemctl is-active cloudflared` → `active` | ☐ |
+| Public login | Browser `https://<HOSTNAME>/login` | ☐ |
+| Tenant site | `https://<HOSTNAME>/riverside` | ☐ |
+| Admin after login | Forms save without CSRF / “forbidden” errors | ☐ |
+| Upload | Gallery/About image upload → `/uploads/...` loads | ☐ |
+
+---
+
+#### F. Cloudflare Tunnel troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---------|--------------|-----|
+| `502` / Bad Gateway | Node not listening on 4321 | Start app; check `curl 127.0.0.1:4321/login` |
+| Login / Save posts fail (“Cross-site” / CSRF) | `PUBLIC_SITE_URL` wrong or app not rebuilt | Set HTTPS public host; rebuild; confirm `allowedDomains` |
+| Tunnel up but DNS NXDOMAIN | Route DNS not run | `cloudflared tunnel route dns <name> <hostname>` |
+| Works on trycloudflare.com, fails on custom host | `PUBLIC_SITE_URL` still points at trycloudflare URL | Update `.env` to custom HTTPS host; rebuild |
+| Uploads 404 through tunnel | File missing or wrong `UPLOADS_DIR` | Confirm files under `public/uploads/` on LXC |
+| Service won’t start | Bad credentials path in `config.yml` | Match `tunnel` ID + `credentials-file` path; `chmod 600` |
 
 ---
 
@@ -301,7 +642,8 @@ Same pattern as Docker:
 | Item | Action |
 |------|--------|
 | `SESSION_SECRET` | Strong random value per environment |
-| TLS | Terminate HTTPS at reverse proxy |
+| TLS | Terminate HTTPS at Cloudflare Tunnel (or reverse proxy); origin stays HTTP on LXC |
+| `PUBLIC_SITE_URL` | Must match the public Cloudflare HTTPS hostname; rebuild app after change |
 | `.env` | Not in image; inject at runtime |
 | Upload size | 5 MB limit enforced server-side |
 | Tenant isolation | Verified by QA isolation scenario |
@@ -319,6 +661,9 @@ Same pattern as Docker:
 | Upload 404 | Volume not mounted or wrong `UPLOADS_DIR` | Check mount + path |
 | Login fails after deploy | Empty DB volume | Re-run `seed` or restore backup |
 | Permission denied on upload | Volume ownership | `chown` for UID 1001 |
+| Cloudflare 502 | App down or wrong origin in tunnel config | Start Node; set `service: http://127.0.0.1:4321` |
+| CSRF / forbidden form POST via tunnel | `PUBLIC_SITE_URL` mismatch | Set to `https://<public-host>`; rebuild + restart |
+| Tunnel DNS not resolving | Missing `tunnel route dns` | Run `cloudflared tunnel route dns <name> <hostname>` |
 
 ---
 
